@@ -1,0 +1,77 @@
+---
+// apps/web/src/pages/auth/forgot.astro
+import { getLocaleFromCookie, t } from '../../i18n/index.js';
+const cookies = Astro.request.headers.get('cookie') ?? '';
+const locale = getLocaleFromCookie(cookies);
+const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
+---
+
+<!DOCTYPE html>
+<html lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'}>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{t('auth.forgot', locale)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Cairo', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .card { background: white; border-radius: 12px; padding: 2rem; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; text-align: center; }
+    p.subtitle { text-align: center; color: #6b7280; font-size: 0.875rem; margin-bottom: 1.5rem; }
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.375rem; }
+    input { width: 100%; padding: 0.625rem 0.875rem; border: 1px solid #e5e7eb; border-radius: 8px; font-family: inherit; font-size: 0.9rem; outline: none; }
+    .btn { width: 100%; padding: 0.75rem; background: #6366f1; color: white; border: none; border-radius: 8px; font-family: inherit; font-size: 1rem; font-weight: 600; cursor: pointer; }
+    .link-row { text-align: center; margin-top: 1rem; font-size: 0.875rem; }
+    .link-row a { color: #6366f1; text-decoration: none; }
+    .msg { padding: 0.75rem; border-radius: 8px; font-size: 0.875rem; margin-bottom: 1rem; display: none; }
+    .msg.success { background: #d1fae5; color: #065f46; }
+    .msg.error { background: #fee2e2; color: #dc2626; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🔐 {t('auth.forgot', locale)}</h1>
+    <p class="subtitle">أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين</p>
+    <div class="msg success" id="success-msg"></div>
+    <div class="msg error" id="error-msg"></div>
+    <form id="forgot-form">
+      <div class="form-group">
+        <label>{t('auth.email', locale)}</label>
+        <input type="email" id="email" required placeholder="you@example.com" />
+      </div>
+      <button type="submit" class="btn" id="submit-btn">إرسال الرابط</button>
+    </form>
+    <div class="link-row">
+      <a href="/auth/login">← {t('auth.login', locale)}</a>
+    </div>
+  </div>
+  <script define:vars={{ API_URL }}>
+    document.getElementById('forgot-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      const successMsg = document.getElementById('success-msg');
+      const errorMsg = document.getElementById('error-msg');
+      btn.disabled = true;
+      successMsg.style.display = 'none';
+      errorMsg.style.display = 'none';
+      try {
+        const res = await fetch(`${API_URL}/auth/forgot`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: document.getElementById('email').value }),
+        });
+        const data = await res.json();
+        successMsg.textContent = data.message ?? 'إذا كان البريد مسجلاً، ستصلك رسالة.';
+        successMsg.style.display = 'block';
+      } catch {
+        errorMsg.textContent = 'حدث خطأ، حاول مجدداً';
+        errorMsg.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

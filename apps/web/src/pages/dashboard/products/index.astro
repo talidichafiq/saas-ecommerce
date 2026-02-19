@@ -1,0 +1,179 @@
+---
+// apps/web/src/pages/dashboard/products/index.astro
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import { getLocaleFromCookie, t } from '../../../i18n/index.js';
+
+const cookies = Astro.request.headers.get('cookie') ?? '';
+const locale = getLocaleFromCookie(cookies);
+const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
+---
+
+<DashboardLayout title={t('dashboard.products', locale)} activeNav="products">
+  <div>
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+      <div style="display:flex;gap:0.75rem;align-items:center">
+        <input
+          type="search"
+          id="search-input"
+          placeholder={t('common.search', locale)}
+          style="border:1px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.875rem;font-family:inherit;font-size:0.875rem;outline:none;width:240px"
+        />
+        <select id="status-filter" style="border:1px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.75rem;font-family:inherit;font-size:0.875rem;outline:none">
+          <option value="">الكل</option>
+          <option value="active">نشط</option>
+          <option value="draft">مسودة</option>
+          <option value="archived">مؤرشف</option>
+        </select>
+      </div>
+      <a href="/dashboard/products/new" style="background:#6366f1;color:#fff;padding:0.55rem 1.25rem;border-radius:8px;font-size:0.875rem;font-weight:600;display:flex;align-items:center;gap:0.375rem">
+        ➕ {t('products.new', locale)}
+      </a>
+    </div>
+
+    <!-- Plan limit banner -->
+    <div id="limit-banner" class="hidden" style="background:#fefce8;border:1px solid #fef08a;border-radius:10px;padding:0.875rem 1rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;font-size:0.875rem">
+      <span id="limit-text">⚠️ اقتربت من الحد الأقصى للمنتجات</span>
+      <a href="/dashboard/billing" style="background:#eab308;color:#fff;padding:0.3rem 0.875rem;border-radius:6px;font-size:0.8rem;font-weight:600">ترقية</a>
+    </div>
+
+    <!-- Table -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-size:0.875rem">
+        <thead>
+          <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">
+            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569">المنتج</th>
+            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569">السعر</th>
+            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569">المخزون</th>
+            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569">الحالة</th>
+            <th style="padding:0.875rem 1rem"></th>
+          </tr>
+        </thead>
+        <tbody id="products-tbody">
+          <tr><td colspan="5" style="text-align:center;padding:3rem;color:#94a3b8">جاري التحميل...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination" style="display:flex;justify-content:center;gap:0.5rem;margin-top:1rem"></div>
+  </div>
+</DashboardLayout>
+
+<script define:vars={{ API_URL }}>
+  const tenantSlug = localStorage.getItem('tenant_slug') ?? '';
+  let currentPage = 1;
+  let searchTimeout = null;
+
+  const statusLabels = { active: 'نشط', draft: 'مسودة', archived: 'مؤرشف' };
+  const statusStyle = {
+    active: 'background:#d1fae5;color:#065f46',
+    draft: 'background:#f1f5f9;color:#475569',
+    archived: 'background:#fee2e2;color:#991b1b',
+  };
+
+  async function loadProducts(page = 1) {
+    currentPage = page;
+    const search = document.getElementById('search-input').value;
+    const status = document.getElementById('status-filter').value;
+    const params = new URLSearchParams({ page, limit: 20 });
+    if (search) params.set('search', search);
+    if (status) params.set('status', status);
+
+    const tbody = document.getElementById('products-tbody');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#94a3b8">جاري التحميل...</td></tr>';
+
+    try {
+      const res = await fetch(`${API_URL}/dashboard/products?${params}`, {
+        credentials: 'include',
+        headers: { 'X-Tenant-Slug': tenantSlug },
+      });
+      const data = await res.json();
+      const products = data.data ?? [];
+      const total = data.total ?? 0;
+
+      // Plan limit check
+      const plan = localStorage.getItem('tenant_plan') ?? 'free';
+      const maxProducts = plan === 'free' ? 20 : Infinity;
+      if (total >= maxProducts * 0.8 && plan === 'free') {
+        document.getElementById('limit-text').textContent = `⚠️ لديك ${total} من أصل ${maxProducts} منتج (خطة مجانية)`;
+        document.getElementById('limit-banner').style.display = 'flex';
+      }
+
+      if (!products.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:3rem;color:#94a3b8">
+          <div style="font-size:2rem;margin-bottom:0.5rem">📦</div>
+          <p>لا توجد منتجات</p>
+          <a href="/dashboard/products/new" style="color:#6366f1;font-size:0.875rem">إضافة أول منتج →</a>
+        </td></tr>`;
+        document.getElementById('pagination').innerHTML = '';
+        return;
+      }
+
+      tbody.innerHTML = products.map(p => `
+        <tr style="border-bottom:1px solid #f1f5f9;transition:background 0.1s" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+          <td style="padding:0.875rem 1rem">
+            <div style="font-weight:600">${p.title}</div>
+            ${p.sku ? `<div style="font-size:0.75rem;color:#94a3b8">${p.sku}</div>` : ''}
+          </td>
+          <td style="padding:0.875rem 1rem">
+            <div style="font-weight:600">${p.price} ${p.currency}</div>
+            ${p.salePrice ? `<div style="font-size:0.75rem;color:#16a34a">خصم: ${p.salePrice}</div>` : ''}
+          </td>
+          <td style="padding:0.875rem 1rem">
+            <span style="${p.stock === 0 ? 'color:#ef4444;font-weight:600' : p.stock < 5 ? 'color:#f59e0b;font-weight:600' : ''}">
+              ${p.stock === 0 ? 'نفد' : p.stock}
+            </span>
+          </td>
+          <td style="padding:0.875rem 1rem">
+            <span style="display:inline-block;padding:0.2rem 0.625rem;border-radius:100px;font-size:0.75rem;font-weight:600;${statusStyle[p.status] ?? ''}">
+              ${statusLabels[p.status] ?? p.status}
+            </span>
+          </td>
+          <td style="padding:0.875rem 1rem;text-align:end">
+            <div style="display:flex;gap:0.5rem;justify-content:flex-end">
+              <a href="/dashboard/products/${p.id}/edit" style="font-size:0.8rem;color:#6366f1;border:1px solid #e2e8f0;padding:0.25rem 0.625rem;border-radius:6px">تعديل</a>
+              <button onclick="deleteProduct('${p.id}', '${p.title.replace(/'/g, "\\'")}')" style="font-size:0.8rem;color:#ef4444;border:1px solid #fee2e2;padding:0.25rem 0.625rem;border-radius:6px;background:none;cursor:pointer;font-family:inherit">حذف</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+
+      // Pagination
+      const totalPages = Math.ceil(total / 20);
+      if (totalPages > 1) {
+        let pages = '';
+        for (let i = 1; i <= totalPages; i++) {
+          pages += `<button onclick="loadProducts(${i})" style="padding:0.4rem 0.875rem;border-radius:6px;border:1px solid ${i === page ? '#6366f1' : '#e2e8f0'};background:${i === page ? '#6366f1' : 'transparent'};color:${i === page ? '#fff' : 'inherit'};cursor:pointer;font-family:inherit;font-size:0.875rem">${i}</button>`;
+        }
+        document.getElementById('pagination').innerHTML = pages;
+      } else {
+        document.getElementById('pagination').innerHTML = '';
+      }
+
+    } catch (err) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#ef4444">فشل تحميل المنتجات</td></tr>';
+    }
+  }
+
+  async function deleteProduct(id, title) {
+    if (!confirm(`هل تريد حذف "${title}"؟ لن تُحذف الطلبات المرتبطة.`)) return;
+    const res = await fetch(`${API_URL}/dashboard/products/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: { 'X-Tenant-Slug': tenantSlug },
+    });
+    if (res.ok) loadProducts(currentPage);
+  }
+
+  // Search debounce
+  document.getElementById('search-input').addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => loadProducts(1), 350);
+  });
+  document.getElementById('status-filter').addEventListener('change', () => loadProducts(1));
+
+  window.loadProducts = loadProducts;
+  window.deleteProduct = deleteProduct;
+  loadProducts(1);
+</script>

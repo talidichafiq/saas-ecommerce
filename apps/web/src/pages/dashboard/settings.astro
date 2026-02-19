@@ -1,0 +1,131 @@
+---
+// apps/web/src/pages/dashboard/settings.astro
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { getLocaleFromCookie, t } from '../../i18n/index.js';
+
+const cookies = Astro.request.headers.get('cookie') ?? '';
+const locale = getLocaleFromCookie(cookies);
+const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
+---
+
+<DashboardLayout title="إعدادات المتجر" activeNav="settings">
+  <div class="max-w-2xl space-y-6">
+    <div id="success-msg" class="hidden bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm"></div>
+    <div id="error-msg" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm"></div>
+
+    <form id="settings-form" class="space-y-6">
+      <!-- General Info -->
+      <div class="bg-white rounded-xl border p-6 space-y-4">
+        <h3 class="font-semibold">معلومات المتجر</h3>
+        <div>
+          <label class="block text-sm font-medium mb-1">اسم المتجر</label>
+          <input name="name" id="store-name" type="text" class="w-full border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">لون المتجر الرئيسي</label>
+          <div class="flex gap-3 items-center">
+            <input name="primaryColor" id="primary-color" type="color" value="#6366f1" class="w-12 h-10 border rounded-lg cursor-pointer p-1" />
+            <input type="text" id="color-hex" value="#6366f1" class="border rounded-lg px-3 py-2 text-sm w-32 font-mono" readonly />
+          </div>
+        </div>
+      </div>
+
+      <!-- Logo -->
+      <div class="bg-white rounded-xl border p-6 space-y-4">
+        <h3 class="font-semibold">شعار المتجر</h3>
+        <div class="flex items-center gap-4">
+          <div id="logo-preview" class="w-20 h-20 rounded-xl border-2 border-dashed border-muted flex items-center justify-center text-3xl">🏪</div>
+          <div>
+            <button type="button" onclick="document.getElementById('logo-input').click()" class="border px-4 py-2 rounded-lg text-sm hover:bg-muted transition-colors">
+              تغيير الشعار
+            </button>
+            <p class="text-xs text-muted-foreground mt-1">PNG, JPG — حتى 2MB</p>
+            <input type="file" id="logo-input" accept="image/*" class="hidden" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Policies -->
+      <div class="bg-white rounded-xl border p-6 space-y-4">
+        <h3 class="font-semibold">سياسات المتجر</h3>
+        <div>
+          <label class="block text-sm font-medium mb-1">سياسة الشحن</label>
+          <textarea name="shippingPolicy" id="shipping-policy" rows="4" class="w-full border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none" placeholder="اكتب سياسة الشحن الخاصة بمتجرك..."></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">سياسة الإرجاع</label>
+          <textarea name="returnPolicy" id="return-policy" rows="4" class="w-full border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none" placeholder="اكتب سياسة الإرجاع الخاصة بمتجرك..."></textarea>
+        </div>
+      </div>
+
+      <button type="submit" id="save-btn" class="bg-primary text-white px-6 py-2.5 rounded-lg font-medium hover:bg-primary/90 transition-colors">
+        حفظ الإعدادات
+      </button>
+    </form>
+  </div>
+</DashboardLayout>
+
+<script define:vars={{ API_URL }}>
+  const tenantSlug = localStorage.getItem('tenant_slug');
+  const tenantId = localStorage.getItem('tenant_id');
+
+  // Load current settings
+  fetch(`${API_URL}/tenants/${tenantId}`, {
+    headers: { 'X-Tenant-Slug': tenantSlug }, credentials: 'include'
+  }).then(r => r.json()).then(data => {
+    if (data.name) document.getElementById('store-name').value = data.name;
+    if (data.primaryColor) {
+      document.getElementById('primary-color').value = data.primaryColor;
+      document.getElementById('color-hex').value = data.primaryColor;
+    }
+    if (data.shippingPolicy) document.getElementById('shipping-policy').value = data.shippingPolicy;
+    if (data.returnPolicy) document.getElementById('return-policy').value = data.returnPolicy;
+  }).catch(() => {});
+
+  document.getElementById('primary-color').addEventListener('input', (e) => {
+    document.getElementById('color-hex').value = e.target.value;
+  });
+
+  document.getElementById('settings-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const saveBtn = document.getElementById('save-btn');
+    const successMsg = document.getElementById('success-msg');
+    const errorMsg = document.getElementById('error-msg');
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'جاري الحفظ...';
+    successMsg.classList.add('hidden');
+    errorMsg.classList.add('hidden');
+
+    try {
+      const res = await fetch(`${API_URL}/tenants/${tenantId}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Tenant-Slug': tenantSlug },
+        body: JSON.stringify({
+          name: form.name.value,
+          primaryColor: form.primaryColor.value,
+          shippingPolicy: form.shippingPolicy.value || undefined,
+          returnPolicy: form.returnPolicy.value || undefined,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        errorMsg.textContent = data.error ?? 'فشل حفظ الإعدادات';
+        errorMsg.classList.remove('hidden');
+        return;
+      }
+
+      successMsg.textContent = 'تم حفظ الإعدادات بنجاح!';
+      successMsg.classList.remove('hidden');
+      setTimeout(() => successMsg.classList.add('hidden'), 3000);
+    } catch {
+      errorMsg.textContent = 'حدث خطأ في الاتصال';
+      errorMsg.classList.remove('hidden');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'حفظ الإعدادات';
+    }
+  });
+</script>

@@ -1,0 +1,143 @@
+---
+// apps/web/src/pages/index.astro
+// This is the platform landing page (app.yourdomain.com)
+const locale = 'ar';
+---
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>منصة المتاجر الإلكترونية | SaaS E-commerce</title>
+  <meta name="description" content="أنشئ متجرك الإلكتروني في دقائق مع منصتنا الاحترافية" />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Cairo', sans-serif; background: #0f0f0f; color: #fff; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 2rem; }
+    nav { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 2rem; border-bottom: 1px solid rgba(255,255,255,0.1); max-width: 1100px; margin: 0 auto; }
+    .nav-brand { font-size: 1.25rem; font-weight: 800; background: linear-gradient(135deg, #6366f1, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .nav-links { display: flex; gap: 1rem; align-items: center; }
+    .btn { padding: 0.6rem 1.5rem; border-radius: 8px; font-family: inherit; font-size: 0.9rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+    .btn-outline { border: 1px solid rgba(255,255,255,0.3); color: #fff; background: transparent; transition: background 0.2s; }
+    .btn-outline:hover { background: rgba(255,255,255,0.1); }
+    .btn-primary { background: linear-gradient(135deg, #6366f1, #a855f7); color: #fff; border: none; }
+    .btn-primary:hover { opacity: 0.9; }
+    .hero { text-align: center; padding: 6rem 2rem; }
+    .badge { display: inline-block; background: rgba(99,102,241,0.2); border: 1px solid rgba(99,102,241,0.5); color: #818cf8; padding: 0.3rem 1rem; border-radius: 100px; font-size: 0.8rem; font-weight: 600; margin-bottom: 1.5rem; }
+    h1 { font-size: clamp(2.5rem, 5vw, 4rem); font-weight: 800; line-height: 1.2; margin-bottom: 1.5rem; }
+    h1 span { background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .subtitle { font-size: 1.2rem; color: rgba(255,255,255,0.6); max-width: 600px; margin: 0 auto 2.5rem; line-height: 1.6; }
+    .hero-btns { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .hero-btn { padding: 0.875rem 2rem; border-radius: 12px; font-size: 1rem; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-block; transition: all 0.2s; }
+    .hero-btn-primary { background: linear-gradient(135deg, #6366f1, #a855f7); color: #fff; border: none; box-shadow: 0 4px 20px rgba(99,102,241,0.4); }
+    .hero-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(99,102,241,0.5); }
+    .hero-btn-secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+    .hero-btn-secondary:hover { background: rgba(255,255,255,0.15); }
+    .features { padding: 5rem 0; }
+    .features h2 { text-align: center; font-size: 2rem; font-weight: 700; margin-bottom: 1rem; }
+    .features-subtitle { text-align: center; color: rgba(255,255,255,0.5); margin-bottom: 3rem; }
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
+    .feature-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 1.75rem; transition: all 0.2s; }
+    .feature-card:hover { background: rgba(255,255,255,0.08); border-color: rgba(99,102,241,0.5); transform: translateY(-2px); }
+    .feature-icon { font-size: 2rem; margin-bottom: 1rem; }
+    .feature-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .feature-desc { color: rgba(255,255,255,0.5); font-size: 0.9rem; line-height: 1.6; }
+    .pricing { padding: 5rem 0; }
+    .pricing h2 { text-align: center; font-size: 2rem; font-weight: 700; margin-bottom: 3rem; }
+    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; max-width: 900px; margin: 0 auto; }
+    .pricing-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 2rem; }
+    .pricing-card.popular { border-color: #6366f1; background: rgba(99,102,241,0.1); }
+    .price-name { font-size: 1rem; font-weight: 600; color: rgba(255,255,255,0.7); margin-bottom: 0.5rem; }
+    .price-amount { font-size: 2.5rem; font-weight: 800; margin-bottom: 1.5rem; }
+    .price-features { list-style: none; space-y: 0.75rem; margin-bottom: 2rem; }
+    .price-features li { font-size: 0.9rem; color: rgba(255,255,255,0.7); padding: 0.375rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .price-features li::before { content: '✓ '; color: #6366f1; font-weight: 700; }
+    .cta { padding: 5rem 0; text-align: center; }
+    .cta h2 { font-size: 2.5rem; font-weight: 800; margin-bottom: 1rem; }
+    footer { padding: 2rem; text-align: center; color: rgba(255,255,255,0.3); font-size: 0.875rem; border-top: 1px solid rgba(255,255,255,0.1); }
+  </style>
+</head>
+<body>
+  <nav>
+    <span class="nav-brand">🏪 StoreBuilder</span>
+    <div class="nav-links">
+      <a href="/auth/login" class="btn btn-outline">تسجيل الدخول</a>
+      <a href="/auth/register" class="btn btn-primary">ابدأ مجاناً</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="container">
+      <div class="badge">✨ جديد: تكامل مع Stripe لجميع العملات</div>
+      <h1>أنشئ <span>متجرك الإلكتروني</span><br />في دقائق</h1>
+      <p class="subtitle">منصة SaaS متكاملة لإنشاء وإدارة متجرك الإلكتروني بدون خبرة تقنية. مدفوعات آمنة، إدارة سهلة، وعملاء سعداء.</p>
+      <div class="hero-btns">
+        <a href="/auth/register" class="hero-btn hero-btn-primary">🚀 أنشئ متجرك مجاناً</a>
+        <a href="/auth/login" class="hero-btn hero-btn-secondary">تسجيل الدخول</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="container">
+      <h2>كل ما تحتاجه لمتجر ناجح</h2>
+      <p class="features-subtitle">أدوات احترافية، واجهة بسيطة، ونتائج رائعة</p>
+      <div class="features-grid">
+        <div class="feature-card"><div class="feature-icon">🏪</div><h3 class="feature-title">متجر احترافي</h3><p class="feature-desc">متجر إلكتروني جميل مع صفحات منتجات، بحث، وسلة تسوق متكاملة</p></div>
+        <div class="feature-card"><div class="feature-icon">💳</div><h3 class="feature-title">مدفوعات آمنة</h3><p class="feature-desc">تكامل مع Stripe لقبول المدفوعات بأمان بعملات متعددة (MAD, EUR, USD)</p></div>
+        <div class="feature-card"><div class="feature-icon">📦</div><h3 class="feature-title">إدارة المنتجات</h3><p class="feature-desc">أضف منتجاتك مع صور متعددة، أسعار تخفيض، ومتابعة المخزون</p></div>
+        <div class="feature-card"><div class="feature-icon">📊</div><h3 class="feature-title">تقارير ومبيعات</h3><p class="feature-desc">تتبع مبيعاتك وطلباتك مع لوحة تحكم احترافية</p></div>
+        <div class="feature-card"><div class="feature-icon">🌍</div><h3 class="feature-title">عربي وإنجليزي</h3><p class="feature-desc">واجهة كاملة بالعربية مع دعم RTL، وتبديل للإنجليزية بضغطة واحدة</p></div>
+        <div class="feature-card"><div class="feature-icon">🚀</div><h3 class="feature-title">سرعة فائقة</h3><p class="feature-desc">مبني على Cloudflare Edge لضمان أسرع تجربة تسوق ممكنة</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pricing">
+    <div class="container">
+      <h2>خطط بسيطة وشفافة</h2>
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <p class="price-name">مجاني</p>
+          <p class="price-amount">0 <span style="font-size:1rem;font-weight:400;color:rgba(255,255,255,0.5)">درهم/شهر</span></p>
+          <ul class="price-features">
+            <li>حتى 20 منتج</li>
+            <li>متجر كامل</li>
+            <li>Stripe Checkout</li>
+            <li>إدارة الطلبات</li>
+          </ul>
+          <a href="/auth/register" class="btn btn-outline" style="width:100%;text-align:center;display:block">ابدأ مجاناً</a>
+        </div>
+        <div class="pricing-card popular">
+          <p class="price-name" style="color:#818cf8">⭐ احترافي</p>
+          <p class="price-amount">149 <span style="font-size:1rem;font-weight:400;color:rgba(255,255,255,0.5)">درهم/شهر</span></p>
+          <ul class="price-features">
+            <li>منتجات غير محدودة</li>
+            <li>تقارير ومبيعات</li>
+            <li>أولوية الدعم</li>
+            <li>جميع ميزات المجاني</li>
+          </ul>
+          <a href="/auth/register" class="btn btn-primary" style="width:100%;text-align:center;display:block">اشترك الآن</a>
+        </div>
+        <div class="pricing-card">
+          <p class="price-name">أعمال</p>
+          <p class="price-amount">349 <span style="font-size:1rem;font-weight:400;color:rgba(255,255,255,0.5)">درهم/شهر</span></p>
+          <ul class="price-features">
+            <li>فريق عمل + صلاحيات</li>
+            <li>دومين مخصص</li>
+            <li>دعم مميز</li>
+            <li>جميع ميزات Pro</li>
+          </ul>
+          <a href="/auth/register" class="btn btn-outline" style="width:100%;text-align:center;display:block">اشترك الآن</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>© {new Date().getFullYear()} StoreBuilder. جميع الحقوق محفوظة. | مبني بـ ❤️ على Cloudflare</p>
+  </footer>
+</body>
+</html>

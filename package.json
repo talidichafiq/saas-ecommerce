@@ -1,0 +1,21 @@
+{
+  "name": "saas-ecommerce",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "build": "pnpm -r build",
+    "db:generate": "pnpm --filter @repo/db generate",
+    "db:migrate": "pnpm --filter @repo/db migrate",
+    "db:migrate:prod": "pnpm --filter @repo/db migrate:prod",
+    "db:seed": "pnpm --filter @repo/db seed",
+    "deploy:api": "pnpm --filter api deploy",
+    "deploy:web": "pnpm --filter web build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

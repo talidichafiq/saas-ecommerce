@@ -1,0 +1,132 @@
+---
+// apps/web/src/layouts/StorefrontLayout.astro
+import { getLocaleFromCookie, t, isRTL } from '../i18n/index.js';
+import type { Locale } from '../i18n/index.js';
+
+interface Props {
+  title?: string;
+  description?: string;
+  ogImage?: string;
+  tenantName?: string;
+}
+
+const {
+  title = 'المتجر',
+  description = '',
+  ogImage,
+  tenantName = 'المتجر',
+} = Astro.props;
+
+const cookies = Astro.request.headers.get('cookie') ?? '';
+const locale: Locale = getLocaleFromCookie(cookies);
+const dir = isRTL(locale) ? 'rtl' : 'ltr';
+
+const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
+---
+
+<!DOCTYPE html>
+<html lang={locale} dir={dir}>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title} | {tenantName}</title>
+  <meta name="description" content={description || `${tenantName} — تسوق أفضل المنتجات`} />
+  {ogImage && <meta property="og:image" content={ogImage} />}
+  <meta property="og:title" content={`${title} | ${tenantName}`} />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --font-sans: 'Cairo', sans-serif;
+      --primary: #6366f1;
+      --primary-fg: #fff;
+      --muted: #f1f5f9;
+      --muted-fg: #64748b;
+      --border: #e2e8f0;
+      --bg: #fafafa;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font-sans); background: var(--bg); color: #1e293b; }
+    html[dir="rtl"] { text-align: right; }
+    a { text-decoration: none; color: inherit; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
+
+    /* Navbar */
+    nav.topnav {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 50;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 3.5rem; max-width: 1200px; margin: 0 auto; padding: 0 1rem;
+    }
+    .nav-brand { font-size: 1.125rem; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 0.5rem; }
+    .nav-links { display: flex; align-items: center; gap: 1rem; }
+    .nav-link { font-size: 0.875rem; color: var(--muted-fg); padding: 0.5rem; border-radius: 6px; transition: color 0.15s; }
+    .nav-link:hover { color: var(--primary); }
+    .cart-btn {
+      display: flex; align-items: center; gap: 0.375rem;
+      background: var(--primary); color: #fff;
+      padding: 0.4rem 0.875rem; border-radius: 8px;
+      font-size: 0.875rem; font-weight: 600; transition: opacity 0.15s;
+    }
+    .cart-btn:hover { opacity: 0.9; }
+    .cart-count {
+      background: #fff; color: var(--primary);
+      border-radius: 100px; padding: 0 0.375rem;
+      font-size: 0.75rem; font-weight: 700; min-width: 1.25rem; text-align: center;
+    }
+
+    /* Footer */
+    footer {
+      background: #fff; border-top: 1px solid var(--border);
+      padding: 2rem 1rem; margin-top: 4rem; text-align: center;
+      color: var(--muted-fg); font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="nav-inner">
+      <a href="/" class="nav-brand">🏪 <span id="brand-name">{tenantName}</span></a>
+      <div class="nav-links">
+        <a href="/" class="nav-link">{t('nav.home', locale)}</a>
+        <a href="/catalog" class="nav-link">{t('nav.catalog', locale)}</a>
+        <a href="/cart" class="cart-btn">
+          🛒 <span id="cart-count-badge" class="cart-count">0</span>
+        </a>
+        <form method="post" action="/api/locale" style="display:inline">
+          <button type="submit" name="locale" value={locale === 'ar' ? 'en' : 'ar'}
+            style="background:none;border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.5rem;cursor:pointer;font-family:inherit;font-size:0.75rem;">
+            {locale === 'ar' ? 'EN' : 'عر'}
+          </button>
+        </form>
+      </div>
+    </div>
+  </nav>
+
+  <slot />
+
+  <footer>
+    <p>© {new Date().getFullYear()} {tenantName}. جميع الحقوق محفوظة.</p>
+  </footer>
+
+  <script>
+    // Update cart count from localStorage
+    function updateCartBadge() {
+      try {
+        const items = JSON.parse(localStorage.getItem('saas_cart') ?? '[]');
+        const count = items.reduce((acc: number, i: any) => acc + i.qty, 0);
+        const badge = document.getElementById('cart-count-badge');
+        if (badge) badge.textContent = String(count);
+      } catch {}
+    }
+    updateCartBadge();
+    // Listen for storage changes (other tabs)
+    window.addEventListener('storage', updateCartBadge);
+  </script>
+</body>
+</html>

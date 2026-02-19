@@ -1,0 +1,217 @@
+---
+// apps/web/src/layouts/DashboardLayout.astro
+import { getLocaleFromCookie, t, isRTL } from '../i18n/index.js';
+import type { Locale } from '../i18n/index.js';
+
+interface Props {
+  title?: string;
+  activeNav?: string;
+}
+
+const { title = 'لوحة التحكم', activeNav = '' } = Astro.props;
+const cookies = Astro.request.headers.get('cookie') ?? '';
+const locale: Locale = getLocaleFromCookie(cookies);
+const dir = isRTL(locale) ? 'rtl' : 'ltr';
+const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
+
+const navItems = [
+  { key: 'home',       href: '/dashboard',            icon: '🏠',  label: t('dashboard.home', locale) },
+  { key: 'products',   href: '/dashboard/products',   icon: '📦',  label: t('dashboard.products', locale) },
+  { key: 'orders',     href: '/dashboard/orders',     icon: '🛒',  label: t('dashboard.orders', locale) },
+  { key: 'categories', href: '/dashboard/categories', icon: '🗂️', label: t('dashboard.categories', locale) },
+  { key: 'billing',    href: '/dashboard/billing',    icon: '💳',  label: t('dashboard.billing', locale) },
+  { key: 'team',       href: '/dashboard/team',       icon: '👥',  label: t('dashboard.team', locale) },
+  { key: 'settings',   href: '/dashboard/settings',   icon: '⚙️', label: t('dashboard.settings', locale) },
+];
+---
+
+<!DOCTYPE html>
+<html lang={locale} dir={dir}>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title} | Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --font-sans: 'Cairo', sans-serif;
+      --primary: #6366f1;
+      --primary-fg: #ffffff;
+      --muted: #f1f5f9;
+      --muted-fg: #64748b;
+      --border: #e2e8f0;
+      --bg: #f8fafc;
+      --sidebar-w: 256px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font-sans); display: flex; min-height: 100vh; background: var(--bg); }
+    html[dir="rtl"] { text-align: right; }
+    a { text-decoration: none; color: inherit; }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-height: 100vh;
+      background: #fff;
+      border-inline-end: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0;
+      inset-inline-start: 0;
+      z-index: 40;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .sidebar-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-brand { font-size: 1.1rem; font-weight: 700; color: var(--primary); }
+    .sidebar-tenant { font-size: 0.75rem; color: var(--muted-fg); margin-top: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    nav { flex: 1; padding: 1rem; display: flex; flex-direction: column; gap: 0.25rem; }
+    .nav-link {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.625rem 0.875rem; border-radius: 0.5rem;
+      font-size: 0.875rem; font-weight: 500;
+      color: var(--muted-fg); transition: background 0.15s, color 0.15s;
+    }
+    .nav-link:hover { background: var(--muted); color: #1e293b; }
+    .nav-link.active { background: var(--primary); color: var(--primary-fg); }
+    .sidebar-footer { padding: 1rem; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+
+    /* Main */
+    .main { flex: 1; margin-inline-start: var(--sidebar-w); display: flex; flex-direction: column; }
+    .topbar {
+      background: #fff; border-bottom: 1px solid var(--border);
+      height: 4rem; display: flex; align-items: center;
+      padding: 0 1.5rem; position: sticky; top: 0; z-index: 30;
+    }
+    .topbar-title { font-size: 1.25rem; font-weight: 600; }
+    .page-content { padding: 1.5rem; flex: 1; }
+
+    /* Utilities */
+    .btn-ghost { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 0.3rem 0.75rem; font-family: inherit; font-size: 0.75rem; cursor: pointer; }
+    .btn-ghost:hover { background: var(--muted); }
+    .text-danger { color: #ef4444; font-size: 0.75rem; background: none; border: none; cursor: pointer; font-family: inherit; }
+    .text-danger:hover { text-decoration: underline; }
+
+    /* Loading overlay */
+    #auth-guard { display: none; position: fixed; inset: 0; background: #fff; z-index: 999; align-items: center; justify-content: center; }
+    #auth-guard.show { display: flex; }
+  </style>
+</head>
+<body>
+  <!-- Auth guard overlay -->
+  <div id="auth-guard" class="show">
+    <div style="text-align:center">
+      <div style="font-size:2rem;margin-bottom:0.5rem">🔐</div>
+      <p style="color:#64748b;font-size:0.875rem">جاري التحقق...</p>
+    </div>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">🏪 Dashboard</div>
+      <div class="sidebar-tenant" id="tenant-name">...</div>
+    </div>
+
+    <nav>
+      {navItems.map(item => (
+        <a
+          href={item.href}
+          class={`nav-link ${activeNav === item.key ? 'active' : ''}`}
+        >
+          <span style="font-size:1.1rem">{item.icon}</span>
+          <span>{item.label}</span>
+        </a>
+      ))}
+    </nav>
+
+    <div class="sidebar-footer">
+      <form method="post" action="/api/locale">
+        <button type="submit" name="locale" value={locale === 'ar' ? 'en' : 'ar'} class="btn-ghost">
+          {locale === 'ar' ? 'EN' : 'عر'}
+        </button>
+      </form>
+      <button onclick="doLogout()" class="text-danger">
+        {t('nav.logout', locale)}
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <h2 class="topbar-title">{title}</h2>
+    </header>
+    <main class="page-content">
+      <slot />
+    </main>
+  </div>
+
+  <script define:vars={{ API_URL }}>
+    // ✅ Auth guard: verify session via API (not localStorage token)
+    // Session is in HttpOnly cookie → just call /auth/me to validate
+    async function checkAuth() {
+      const tenantSlug = localStorage.getItem('tenant_slug');
+      try {
+        const res = await fetch(`${API_URL}/auth/me`, {
+          credentials: 'include',
+          headers: tenantSlug ? { 'X-Tenant-Slug': tenantSlug } : {},
+        });
+
+        if (!res.ok) {
+          // Session expired or invalid → redirect to login
+          window.location.href = `/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+          return;
+        }
+
+        const data = await res.json();
+
+        // Update UI state from server response (always fresh)
+        if (data.user) {
+          localStorage.setItem('auth_user', JSON.stringify(data.user));
+        }
+        if (data.tenants?.length) {
+          const tenant = tenantSlug
+            ? data.tenants.find((t) => t.slug === tenantSlug) ?? data.tenants[0]
+            : data.tenants[0];
+          if (tenant) {
+            localStorage.setItem('tenant_id', tenant.id);
+            localStorage.setItem('tenant_slug', tenant.slug);
+            localStorage.setItem('tenant_role', tenant.role);
+            localStorage.setItem('tenant_plan', tenant.plan);
+            localStorage.setItem('tenant_name', tenant.name);
+          }
+        }
+
+        // Update sidebar display
+        const tenantName = localStorage.getItem('tenant_name') ?? localStorage.getItem('tenant_slug') ?? 'متجري';
+        const el = document.getElementById('tenant-name');
+        if (el) el.textContent = tenantName;
+
+        // Hide guard
+        document.getElementById('auth-guard').classList.remove('show');
+
+      } catch {
+        window.location.href = '/auth/login';
+      }
+    }
+
+    async function doLogout() {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      }).catch(() => {});
+
+      ['auth_user', 'tenant_id', 'tenant_slug', 'tenant_role', 'tenant_plan', 'tenant_name']
+        .forEach(k => localStorage.removeItem(k));
+
+      window.location.href = '/auth/login';
+    }
+
+    window.doLogout = doLogout;
+    checkAuth();
+  </script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+# apps/api/wrangler.toml
+#
+# ✅ إصلاحات:
+#   - حذف التكرار في d1_databases
+#   - environments مفصولة (production / preview / local)
+#   - Durable Object binding للـ rate limiter
+#   - Secrets واضحة (لا قيم hardcoded)
+
+name = "saas-ecommerce-api"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# ─── Shared Vars (non-secret) ────────────────────────────────
+[vars]
+APP_URL        = "https://app.yourdomain.com"
+API_URL        = "https://api.yourdomain.com"
+# CORS_ORIGINS is validated in code via regex — not stored here
+# Secrets (never put in wrangler.toml):
+#   STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
+#   RESEND_API_KEY, ADMIN_SECRET
+#   → Set via: wrangler secret put <SECRET_NAME>
+
+# ─── D1 Database (ONE definition) ───────────────────────────
+[[d1_databases]]
+binding       = "DB"
+database_name = "saas-ecommerce-db"
+database_id   = "YOUR_D1_DATABASE_ID"   # wrangler d1 create saas-ecommerce-db
+
+# ─── R2 Bucket ──────────────────────────────────────────────
+[[r2_buckets]]
+binding     = "R2"
+bucket_name = "saas-ecommerce-uploads"
+
+# ─── KV (public API rate limiting — eventual consistency OK) ─
+[[kv_namespaces]]
+binding = "KV_RATE_LIMIT"
+id      = "YOUR_KV_NAMESPACE_ID"        # wrangler kv:namespace create RATE_LIMIT
+
+# ─── Durable Objects (login rate limiting — strong consistency) ─
+[[durable_objects.bindings]]
+name       = "RATE_LIMITER_DO"
+class_name = "RateLimiterDO"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["RateLimiterDO"]
+
+# ═══════════════════════════════════════════════════════════════
+# ENVIRONMENTS
+# ═══════════════════════════════════════════════════════════════
+
+# ─── Production ──────────────────────────────────────────────
+[env.production]
+name = "saas-ecommerce-api"
+
+[env.production.vars]
+APP_URL = "https://app.yourdomain.com"
+API_URL = "https://api.yourdomain.com"
+
+[[env.production.d1_databases]]
+binding       = "DB"
+database_name = "saas-ecommerce-db"
+database_id   = "YOUR_D1_DATABASE_ID"
+
+[[env.production.r2_buckets]]
+binding     = "R2"
+bucket_name = "saas-ecommerce-uploads"
+
+[[env.production.kv_namespaces]]
+binding = "KV_RATE_LIMIT"
+id      = "YOUR_KV_NAMESPACE_ID"
+
+[[env.production.durable_objects.bindings]]
+name       = "RATE_LIMITER_DO"
+class_name = "RateLimiterDO"
+
+# ─── Preview / Staging ───────────────────────────────────────
+[env.preview]
+name = "saas-ecommerce-api-preview"
+
+[env.preview.vars]
+APP_URL = "https://preview.yourdomain.com"
+API_URL = "https://api-preview.yourdomain.com"
+
+[[env.preview.d1_databases]]
+binding       = "DB"
+database_name = "saas-ecommerce-db-preview"
+database_id   = "YOUR_PREVIEW_D1_DATABASE_ID"
+
+[[env.preview.r2_buckets]]
+binding     = "R2"
+bucket_name = "saas-ecommerce-uploads-preview"
+
+[[env.preview.kv_namespaces]]
+binding = "KV_RATE_LIMIT"
+id      = "YOUR_PREVIEW_KV_NAMESPACE_ID"
+
+[[env.preview.durable_objects.bindings]]
+name       = "RATE_LIMITER_DO"
+class_name = "RateLimiterDO"
+
+# ─── Local Development ────────────────────────────────────────
+[dev]
+port           = 8787
+local_protocol = "http"
+ip             = "0.0.0.0"
+
+# Local dev uses --local flag automatically with wrangler dev
+# D1, R2, KV are all mocked locally by wrangler

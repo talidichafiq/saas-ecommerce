@@ -1,0 +1,208 @@
+---
+// apps/web/src/pages/store/[slug].astro (product detail)
+// Note: Astro dynamic route for /product/[id] pattern
+import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
+import { getLocaleFromCookie, t } from '../../i18n/index.js';
+
+const cookies = Astro.request.headers.get('cookie') ?? '';
+const locale = getLocaleFromCookie(cookies);
+const host = Astro.request.headers.get('host') ?? '';
+const tenantSlug = host.split('.')[0];
+const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
+
+const { slug: productId } = Astro.params;
+let product: any = null;
+
+try {
+  const res = await fetch(`${API_URL}/store/products/${productId}`, {
+    headers: { 'X-Tenant-Slug': tenantSlug }
+  });
+  if (res.ok) product = await res.json();
+} catch {}
+
+if (!product) {
+  return Astro.redirect('/catalog');
+}
+
+const currentImage = product.images?.[0]?.url;
+const effectivePrice = product.salePrice ?? product.price;
+const discount = product.salePrice ? Math.round((1 - product.salePrice / product.price) * 100) : null;
+---
+
+<StorefrontLayout title={product.title} description={product.description ?? ''} ogImage={currentImage}>
+  <div class="container py-8">
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+      <a href="/" class="hover:text-foreground">الرئيسية</a>
+      <span>/</span>
+      <a href="/catalog" class="hover:text-foreground">المنتجات</a>
+      <span>/</span>
+      <span class="text-foreground">{product.title}</span>
+    </nav>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+      <!-- Images -->
+      <div class="space-y-3">
+        <div class="aspect-square bg-muted rounded-2xl overflow-hidden" id="main-image">
+          {currentImage ? (
+            <img id="main-img" src={currentImage} alt={product.title} class="w-full h-full object-cover" />
+          ) : (
+            <div class="w-full h-full flex items-center justify-center text-8xl">📦</div>
+          )}
+        </div>
+        {product.images?.length > 1 && (
+          <div class="flex gap-2 overflow-x-auto">
+            {product.images.map((img: any, i: number) => (
+              <button
+                onclick={`document.getElementById('main-img').src='${img.url}'`}
+                class="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 hover:border-primary transition-colors"
+              >
+                <img src={img.url} alt={img.alt ?? ''} class="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <!-- Info -->
+      <div>
+        <div class="flex items-start gap-2 mb-3">
+          {product.categories?.map((cat: any) => (
+            <a href={`/catalog?category=${cat.slug}`}
+              class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full hover:bg-primary/20"
+            >
+              {cat.name}
+            </a>
+          ))}
+        </div>
+
+        <h1 class="text-2xl md:text-3xl font-bold mb-4">{product.title}</h1>
+
+        <!-- Price -->
+        <div class="flex items-center gap-3 mb-6">
+          {product.salePrice ? (
+            <>
+              <span class="text-3xl font-bold text-primary">{product.salePrice} {product.currency}</span>
+              <span class="text-xl text-muted-foreground line-through">{product.price}</span>
+              {discount && <span class="bg-red-100 text-red-600 text-sm px-2 py-0.5 rounded-full font-medium">-{discount}%</span>}
+            </>
+          ) : (
+            <span class="text-3xl font-bold">{product.price} {product.currency}</span>
+          )}
+        </div>
+
+        <!-- Stock -->
+        <div class="mb-6">
+          {product.stock === 0 ? (
+            <span class="inline-flex items-center gap-1.5 text-sm text-red-500 font-medium">
+              <span class="w-2 h-2 rounded-full bg-red-500"></span>
+              {t('store.out_of_stock', locale)}
+            </span>
+          ) : product.stock < 5 ? (
+            <span class="inline-flex items-center gap-1.5 text-sm text-yellow-600 font-medium">
+              <span class="w-2 h-2 rounded-full bg-yellow-500"></span>
+              متبقي {product.stock} فقط!
+            </span>
+          ) : (
+            <span class="inline-flex items-center gap-1.5 text-sm text-green-600 font-medium">
+              <span class="w-2 h-2 rounded-full bg-green-500"></span>
+              متوفر في المخزون
+            </span>
+          )}
+        </div>
+
+        <!-- Quantity + Add to Cart -->
+        <div class="flex items-center gap-3 mb-6">
+          <div class="flex items-center border rounded-lg">
+            <button id="qty-dec" class="px-3 py-2.5 hover:bg-muted transition-colors text-lg" type="button">−</button>
+            <input id="qty-input" type="number" value="1" min="1" max={product.stock} class="w-14 text-center border-x py-2.5 text-sm font-medium focus:outline-none" />
+            <button id="qty-inc" class="px-3 py-2.5 hover:bg-muted transition-colors text-lg" type="button">+</button>
+          </div>
+          <button
+            id="add-to-cart"
+            class={`flex-1 py-3 rounded-xl font-semibold text-sm transition-colors ${product.stock === 0 ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-white hover:bg-primary/90'}`}
+            disabled={product.stock === 0}
+          >
+            {product.stock === 0 ? t('store.out_of_stock', locale) : t('store.add_to_cart', locale)}
+          </button>
+        </div>
+
+        <!-- SKU -->
+        {product.sku && (
+          <p class="text-xs text-muted-foreground">رمز المنتج: {product.sku}</p>
+        )}
+
+        <!-- Description -->
+        {product.description && (
+          <div class="border-t pt-6 mt-6">
+            <h2 class="font-semibold mb-3">وصف المنتج</h2>
+            <p class="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{product.description}</p>
+          </div>
+        )}
+      </div>
+    </div>
+
+    <!-- Related Products -->
+    {product.related?.length > 0 && (
+      <div>
+        <h2 class="text-xl font-bold mb-5">{t('store.related', locale)}</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {product.related.map((p: any) => (
+            <a href={`/product/${p.id}`} class="bg-white rounded-xl border hover:border-primary hover:shadow-md transition-all">
+              <div class="aspect-square bg-muted rounded-t-xl overflow-hidden">
+                <div class="w-full h-full flex items-center justify-center text-3xl">📦</div>
+              </div>
+              <div class="p-3">
+                <h3 class="text-sm font-medium line-clamp-2 mb-1">{p.title}</h3>
+                <span class="text-sm font-bold">{p.price} {p.currency}</span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-6 end-6 bg-green-600 text-white px-4 py-3 rounded-xl shadow-lg text-sm font-medium opacity-0 transition-opacity pointer-events-none">
+    ✅ تمت الإضافة للسلة!
+  </div>
+</StorefrontLayout>
+
+<script define:vars={{
+  productId: product.id,
+  productTitle: product.title,
+  productPrice: product.price,
+  productSalePrice: product.salePrice,
+  productStock: product.stock,
+  productImage: currentImage,
+  productCurrency: product.currency,
+}}>
+  import { addToCart } from '/src/lib/cart.ts';
+
+  const qtyInput = document.getElementById('qty-input');
+  const toast = document.getElementById('toast');
+
+  document.getElementById('qty-dec').addEventListener('click', () => {
+    qtyInput.value = Math.max(1, parseInt(qtyInput.value) - 1);
+  });
+  document.getElementById('qty-inc').addEventListener('click', () => {
+    qtyInput.value = Math.min(productStock, parseInt(qtyInput.value) + 1);
+  });
+
+  document.getElementById('add-to-cart')?.addEventListener('click', () => {
+    const qty = parseInt(qtyInput.value);
+    addToCart({
+      productId,
+      title: productTitle,
+      price: productPrice,
+      salePrice: productSalePrice,
+      imageUrl: productImage ?? null,
+      stock: productStock,
+    }, qty);
+
+    // Show toast
+    toast.style.opacity = '1';
+    setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+  });
+</script>

@@ -1,0 +1,100 @@
+---
+// apps/web/src/pages/dashboard/team.astro
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
+---
+
+<DashboardLayout title="إدارة الفريق" activeNav="team">
+  <div class="max-w-2xl">
+    <!-- Plan gate -->
+    <div id="plan-gate" class="hidden bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl p-6 mb-6">
+      <h3 class="font-bold text-lg mb-2">🔒 ميزة الفريق متاحة في خطة Business</h3>
+      <p class="text-sm opacity-90 mb-4">قم بالترقية لإضافة أعضاء فريق وإدارة الصلاحيات</p>
+      <a href="/dashboard/billing" class="bg-white text-indigo-600 px-4 py-2 rounded-lg font-semibold text-sm">ترقية الآن</a>
+    </div>
+
+    <!-- Invite form -->
+    <div id="invite-section" class="hidden">
+      <div class="bg-white rounded-xl border p-6 mb-6">
+        <h3 class="font-semibold mb-4">دعوة عضو جديد</h3>
+        <div class="flex gap-3">
+          <input type="email" id="invite-email" placeholder="email@example.com" class="flex-1 border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+          <select id="invite-role" class="border rounded-lg px-3 py-2 text-sm focus:outline-none">
+            <option value="staff">موظف</option>
+            <option value="admin">مدير</option>
+          </select>
+          <button onclick="inviteMember()" class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90">دعوة</button>
+        </div>
+        <div id="invite-error" class="hidden mt-2 text-sm text-red-500"></div>
+        <p class="text-xs text-muted-foreground mt-2">المستخدم يجب أن يكون مسجلاً مسبقاً في المنصة</p>
+      </div>
+
+      <!-- Members list -->
+      <div class="bg-white rounded-xl border overflow-hidden">
+        <div class="px-6 py-4 border-b">
+          <h3 class="font-semibold">أعضاء الفريق</h3>
+        </div>
+        <div id="members-loading" class="p-8 text-center text-sm text-muted-foreground">جاري التحميل...</div>
+        <ul id="members-list"></ul>
+      </div>
+    </div>
+  </div>
+</DashboardLayout>
+
+<script define:vars={{ API_URL }}>
+  const tenantId = localStorage.getItem('tenant_id');
+  const tenantSlug = localStorage.getItem('tenant_slug');
+  const plan = localStorage.getItem('tenant_plan');
+
+  const roleLabels = { owner: 'مالك', admin: 'مدير', staff: 'موظف' };
+
+  if (plan !== 'business') {
+    document.getElementById('plan-gate').classList.remove('hidden');
+  } else {
+    document.getElementById('invite-section').classList.remove('hidden');
+    loadMembers();
+  }
+
+  async function loadMembers() {
+    try {
+      const res = await fetch(`${API_URL}/tenants/${tenantId}/members`, {
+        headers: { 'X-Tenant-Slug': tenantSlug }, credentials: 'include'
+      });
+      const data = await res.json();
+      document.getElementById('members-loading').classList.add('hidden');
+
+      document.getElementById('members-list').innerHTML = (data.data ?? []).map(m => `
+        <li class="flex items-center justify-between px-6 py-4 border-t first:border-t-0">
+          <div>
+            <p class="font-medium text-sm">${m.user?.name ?? m.userId}</p>
+            <p class="text-xs text-muted-foreground">${m.user?.email ?? ''}</p>
+          </div>
+          <span class="text-xs px-2 py-1 rounded-full ${m.role === 'owner' ? 'bg-primary/10 text-primary' : m.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}">
+            ${roleLabels[m.role] ?? m.role}
+          </span>
+        </li>
+      `).join('');
+    } catch {}
+  }
+
+  async function inviteMember() {
+    const email = document.getElementById('invite-email').value;
+    const role = document.getElementById('invite-role').value;
+    const errorEl = document.getElementById('invite-error');
+    errorEl.classList.add('hidden');
+
+    try {
+      const res = await fetch(`${API_URL}/tenants/${tenantId}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Tenant-Slug': tenantSlug },
+        body: JSON.stringify({ email, role }),
+      });
+      const data = await res.json();
+      if (!res.ok) { errorEl.textContent = data.error ?? 'فشل'; errorEl.classList.remove('hidden'); return; }
+      document.getElementById('invite-email').value = '';
+      loadMembers();
+    } catch {}
+  }
+
+  window.inviteMember = inviteMember;
+</script>

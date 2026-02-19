@@ -1,0 +1,74 @@
+---
+// apps/web/src/pages/store/success.astro
+import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
+import { getLocaleFromCookie } from '../../i18n/index.js';
+
+const cookies = Astro.request.headers.get('cookie') ?? '';
+const locale = getLocaleFromCookie(cookies);
+const url = new URL(Astro.request.url);
+const orderId = url.searchParams.get('order_id');
+const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
+const host = Astro.request.headers.get('host') ?? '';
+const tenantSlug = host.split('.')[0];
+
+let order: any = null;
+if (orderId) {
+  try {
+    const res = await fetch(`${API_URL}/store/orders/${orderId}`, {
+      headers: { 'X-Tenant-Slug': tenantSlug }
+    });
+    if (res.ok) order = await res.json();
+  } catch {}
+}
+---
+
+<StorefrontLayout title="تم الطلب بنجاح! 🎉">
+  <div class="container py-16 max-w-lg text-center">
+    <div class="bg-white rounded-2xl border shadow-sm p-10">
+      <div class="text-6xl mb-6">🎉</div>
+      <h1 class="text-2xl font-bold mb-2">شكراً لطلبك!</h1>
+      <p class="text-muted-foreground mb-6">
+        {order ? `تم استلام طلبك بنجاح. سنتواصل معك قريباً.` : 'تم إتمام عملية الشراء بنجاح.'}
+      </p>
+
+      {order && (
+        <div class="bg-muted/50 rounded-xl p-5 text-start mb-6">
+          <p class="text-sm font-medium mb-3">تفاصيل الطلب:</p>
+          <div class="space-y-2">
+            <div class="flex justify-between text-sm">
+              <span class="text-muted-foreground">رقم الطلب</span>
+              <span class="font-mono font-medium">#{order.id.slice(-8).toUpperCase()}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-muted-foreground">البريد الإلكتروني</span>
+              <span>{order.customerEmail}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-muted-foreground">الإجمالي</span>
+              <span class="font-bold text-primary">{order.total} {order.currency}</span>
+            </div>
+          </div>
+          {order.items && (
+            <div class="mt-3 pt-3 border-t space-y-1">
+              {order.items.map((item: any) => (
+                <div class="flex justify-between text-xs text-muted-foreground">
+                  <span>{item.titleSnapshot} × {item.qty}</span>
+                  <span>{(item.priceSnapshot * item.qty).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div class="flex flex-col gap-3">
+        <a href="/" class="bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary/90 transition-colors">
+          العودة للمتجر
+        </a>
+        <a href="/catalog" class="border py-3 rounded-xl font-medium hover:bg-muted transition-colors text-sm">
+          متابعة التسوق
+        </a>
+      </div>
+    </div>
+  </div>
+</StorefrontLayout>

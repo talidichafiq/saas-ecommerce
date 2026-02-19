@@ -1,0 +1,143 @@
+---
+// apps/web/src/pages/store/catalog.astro
+import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
+import { getLocaleFromCookie, t } from '../../i18n/index.js';
+
+const cookies = Astro.request.headers.get('cookie') ?? '';
+const locale = getLocaleFromCookie(cookies);
+
+const host = Astro.request.headers.get('host') ?? '';
+const slug = host.split('.')[0];
+const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
+
+const url = new URL(Astro.request.url);
+const category = url.searchParams.get('category') ?? '';
+const search = url.searchParams.get('search') ?? '';
+const page = parseInt(url.searchParams.get('page') ?? '1');
+
+let products: any[] = [];
+let total = 0;
+let categories: any[] = [];
+
+try {
+  const params = new URLSearchParams({ page: String(page), limit: '24', status: 'active' });
+  if (category) params.set('category', category);
+  if (search) params.set('search', search);
+
+  const [productsRes, catsRes] = await Promise.all([
+    fetch(`${API_URL}/store/products?${params}`, { headers: { 'X-Tenant-Slug': slug } }),
+    fetch(`${API_URL}/store/categories`, { headers: { 'X-Tenant-Slug': slug } }),
+  ]);
+
+  if (productsRes.ok) { const d = await productsRes.json(); products = d.data ?? []; total = d.total ?? 0; }
+  if (catsRes.ok) { const d = await catsRes.json(); categories = d.data ?? []; }
+} catch {}
+
+const totalPages = Math.ceil(total / 24);
+---
+
+<StorefrontLayout title={t('store.all_products', locale)}>
+  <div class="container py-8">
+    <!-- Search bar -->
+    <form method="get" class="mb-6">
+      <div class="flex gap-2 max-w-lg">
+        <input
+          type="text"
+          name="search"
+          value={search}
+          placeholder={t('store.search_placeholder', locale)}
+          class="flex-1 border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+        />
+        <button type="submit" class="bg-primary text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-primary/90">
+          بحث
+        </button>
+      </div>
+    </form>
+
+    <div class="flex gap-6">
+      <!-- Sidebar filters -->
+      <aside class="w-48 flex-shrink-0 hidden md:block">
+        <h3 class="font-semibold mb-3 text-sm">{t('store.filter_category', locale)}</h3>
+        <div class="space-y-1">
+          <a
+            href="/catalog"
+            class={`block text-sm px-3 py-1.5 rounded-lg transition-colors ${!category ? 'bg-primary text-white' : 'hover:bg-muted'}`}
+          >
+            {t('store.all_products', locale)}
+          </a>
+          {categories.map(cat => (
+            <a
+              href={`/catalog?category=${cat.slug}${search ? `&search=${search}` : ''}`}
+              class={`block text-sm px-3 py-1.5 rounded-lg transition-colors ${category === cat.slug ? 'bg-primary text-white' : 'hover:bg-muted'}`}
+            >
+              {cat.name}
+            </a>
+          ))}
+        </div>
+      </aside>
+
+      <!-- Products grid -->
+      <div class="flex-1">
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-sm text-muted-foreground">{total} {t('common.results', locale)}</p>
+        </div>
+
+        {products.length === 0 ? (
+          <div class="text-center py-20 text-muted-foreground">
+            <div class="text-5xl mb-4">🔍</div>
+            <p>لا توجد منتجات مطابقة</p>
+          </div>
+        ) : (
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {products.map(product => (
+              <a href={`/product/${product.id}`} class="group bg-white rounded-xl border hover:border-primary hover:shadow-md transition-all">
+                <div class="aspect-square bg-muted rounded-t-xl overflow-hidden">
+                  {product.images?.[0] ? (
+                    <img src={product.images[0].url} alt={product.title} class="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
+                  ) : (
+                    <div class="w-full h-full flex items-center justify-center text-3xl">📦</div>
+                  )}
+                </div>
+                <div class="p-3">
+                  <h3 class="font-medium text-sm line-clamp-2 mb-2 group-hover:text-primary">{product.title}</h3>
+                  <div class="flex items-center justify-between">
+                    <div>
+                      {product.salePrice ? (
+                        <div>
+                          <span class="font-bold text-primary text-sm">{product.salePrice} {product.currency}</span>
+                          <span class="text-xs text-muted-foreground line-through ms-1">{product.price}</span>
+                        </div>
+                      ) : (
+                        <span class="font-bold text-sm">{product.price} {product.currency}</span>
+                      )}
+                    </div>
+                    {product.stock === 0 && <span class="text-xs text-red-500">نفد</span>}
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+
+        <!-- Pagination -->
+        {totalPages > 1 && (
+          <div class="flex justify-center gap-2 mt-8">
+            {page > 1 && (
+              <a href={`/catalog?page=${page - 1}${category ? `&category=${category}` : ''}${search ? `&search=${search}` : ''}`}
+                class="px-4 py-2 border rounded-lg text-sm hover:bg-muted"
+              >← السابق</a>
+            )}
+            <span class="px-4 py-2 text-sm text-muted-foreground">
+              {page} {t('common.of', locale)} {totalPages}
+            </span>
+            {page < totalPages && (
+              <a href={`/catalog?page=${page + 1}${category ? `&category=${category}` : ''}${search ? `&search=${search}` : ''}`}
+                class="px-4 py-2 border rounded-lg text-sm hover:bg-muted"
+              >التالي →</a>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+</StorefrontLayout>

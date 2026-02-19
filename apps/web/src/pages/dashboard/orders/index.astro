@@ -1,0 +1,182 @@
+---
+// apps/web/src/pages/dashboard/orders/index.astro
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import { getLocaleFromCookie, t } from '../../../i18n/index.js';
+
+const cookies = Astro.request.headers.get('cookie') ?? '';
+const locale = getLocaleFromCookie(cookies);
+const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
+---
+
+<DashboardLayout title={t('dashboard.orders', locale)} activeNav="orders">
+  <div>
+    <!-- Filters -->
+    <div style="display:flex;gap:0.75rem;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap">
+      <select id="status-filter" style="border:1px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.875rem;font-family:inherit;font-size:0.875rem;outline:none">
+        <option value="">كل الطلبات</option>
+        <option value="pending">قيد الانتظار</option>
+        <option value="paid">مدفوع</option>
+        <option value="shipped">تم الشحن</option>
+        <option value="cancelled">ملغي</option>
+        <option value="refunded">مسترجع</option>
+      </select>
+      <span id="total-count" style="font-size:0.875rem;color:#64748b"></span>
+    </div>
+
+    <!-- Table -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-size:0.875rem">
+        <thead>
+          <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">
+            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569">رقم الطلب</th>
+            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569">العميل</th>
+            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569">الإجمالي</th>
+            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569">الحالة</th>
+            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569">التاريخ</th>
+            <th style="padding:0.875rem 1rem"></th>
+          </tr>
+        </thead>
+        <tbody id="orders-tbody">
+          <tr><td colspan="6" style="text-align:center;padding:3rem;color:#94a3b8">جاري التحميل...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div id="pagination" style="display:flex;justify-content:center;gap:0.5rem;margin-top:1rem"></div>
+
+    <!-- Status Update Modal -->
+    <div id="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;align-items:center;justify-content:center">
+      <div style="background:#fff;border-radius:16px;padding:1.5rem;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
+        <h3 style="font-size:1rem;font-weight:600;margin-bottom:1rem">تحديث حالة الطلب</h3>
+        <input type="hidden" id="modal-order-id" />
+        <div class="form-group" style="margin-bottom:1rem">
+          <label style="display:block;font-size:0.875rem;font-weight:500;margin-bottom:0.375rem">الحالة الجديدة</label>
+          <select id="modal-status" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.625rem 0.875rem;font-family:inherit;font-size:0.9rem;outline:none">
+            <option value="pending">قيد الانتظار</option>
+            <option value="paid">مدفوع</option>
+            <option value="shipped">تم الشحن</option>
+            <option value="cancelled">ملغي</option>
+            <option value="refunded">مسترجع</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:1rem">
+          <label style="display:block;font-size:0.875rem;font-weight:500;margin-bottom:0.375rem">ملاحظة (اختياري)</label>
+          <input id="modal-note" type="text" maxlength="500" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.625rem 0.875rem;font-family:inherit;font-size:0.9rem;outline:none" />
+        </div>
+        <div style="display:flex;gap:0.75rem;justify-content:flex-end">
+          <button onclick="closeModal()" style="padding:0.5rem 1rem;border:1px solid #e2e8f0;border-radius:8px;background:none;cursor:pointer;font-family:inherit">إلغاء</button>
+          <button onclick="saveStatus()" style="padding:0.5rem 1.25rem;background:#6366f1;color:#fff;border:none;border-radius:8px;font-family:inherit;font-weight:600;cursor:pointer">حفظ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</DashboardLayout>
+
+<script define:vars={{ API_URL }}>
+  const tenantSlug = localStorage.getItem('tenant_slug') ?? '';
+  let currentPage = 1;
+
+  const statusLabels = { pending: 'قيد الانتظار', paid: 'مدفوع', shipped: 'تم الشحن', cancelled: 'ملغي', refunded: 'مسترجع' };
+  const statusStyle = {
+    pending: 'background:#fef3c7;color:#92400e',
+    paid: 'background:#d1fae5;color:#065f46',
+    shipped: 'background:#dbeafe;color:#1e40af',
+    cancelled: 'background:#fee2e2;color:#991b1b',
+    refunded: 'background:#f3e8ff;color:#7c3aed',
+  };
+
+  async function loadOrders(page = 1) {
+    currentPage = page;
+    const status = document.getElementById('status-filter').value;
+    const params = new URLSearchParams({ page, limit: 20 });
+    if (status) params.set('status', status);
+
+    const tbody = document.getElementById('orders-tbody');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#94a3b8">جاري التحميل...</td></tr>';
+
+    try {
+      const res = await fetch(`${API_URL}/dashboard/orders?${params}`, {
+        credentials: 'include',
+        headers: { 'X-Tenant-Slug': tenantSlug },
+      });
+      const data = await res.json();
+      const orders = data.data ?? [];
+
+      document.getElementById('total-count').textContent = orders.length > 0 ? `${orders.length} طلب` : '';
+
+      if (!orders.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:3rem;color:#94a3b8"><div style="font-size:2rem;margin-bottom:0.5rem">🛒</div><p>لا توجد طلبات</p></td></tr>';
+        document.getElementById('pagination').innerHTML = '';
+        return;
+      }
+
+      tbody.innerHTML = orders.map(o => {
+        const date = new Date(o.createdAt).toLocaleDateString('ar-MA', { year: 'numeric', month: 'short', day: 'numeric' });
+        return `
+          <tr style="border-bottom:1px solid #f1f5f9" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+            <td style="padding:0.875rem 1rem;font-weight:600;font-family:monospace">#${o.id.slice(-6).toUpperCase()}</td>
+            <td style="padding:0.875rem 1rem;color:#475569">${o.customerEmail}</td>
+            <td style="padding:0.875rem 1rem;font-weight:600">${o.total} ${o.currency}</td>
+            <td style="padding:0.875rem 1rem">
+              <span style="display:inline-block;padding:0.2rem 0.625rem;border-radius:100px;font-size:0.75rem;font-weight:600;${statusStyle[o.status] ?? ''}">
+                ${statusLabels[o.status] ?? o.status}
+              </span>
+            </td>
+            <td style="padding:0.875rem 1rem;color:#64748b;font-size:0.8rem">${date}</td>
+            <td style="padding:0.875rem 1rem">
+              <button onclick="openModal('${o.id}', '${o.status}')"
+                style="font-size:0.8rem;color:#6366f1;border:1px solid #e2e8f0;padding:0.25rem 0.625rem;border-radius:6px;background:none;cursor:pointer;font-family:inherit">
+                تحديث
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+    } catch {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#ef4444">فشل تحميل الطلبات</td></tr>';
+    }
+  }
+
+  function openModal(orderId, currentStatus) {
+    document.getElementById('modal-order-id').value = orderId;
+    document.getElementById('modal-status').value = currentStatus;
+    document.getElementById('modal-note').value = '';
+    document.getElementById('modal-overlay').style.display = 'flex';
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').style.display = 'none';
+  }
+
+  async function saveStatus() {
+    const orderId = document.getElementById('modal-order-id').value;
+    const status = document.getElementById('modal-status').value;
+    const note = document.getElementById('modal-note').value;
+
+    const res = await fetch(`${API_URL}/dashboard/orders/${orderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-Tenant-Slug': tenantSlug },
+      credentials: 'include',
+      body: JSON.stringify({ status, note: note || undefined }),
+    });
+
+    if (res.ok) {
+      closeModal();
+      loadOrders(currentPage);
+    }
+  }
+
+  // Close modal on overlay click
+  document.getElementById('modal-overlay').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+
+  document.getElementById('status-filter').addEventListener('change', () => loadOrders(1));
+
+  window.openModal = openModal;
+  window.closeModal = closeModal;
+  window.saveStatus = saveStatus;
+  window.loadOrders = loadOrders;
+  loadOrders();
+</script>

@@ -1,0 +1,120 @@
+---
+// apps/web/src/pages/auth/onboarding.astro
+import { getLocaleFromCookie, t, isRTL } from '../../i18n/index.js';
+const cookies = Astro.request.headers.get('cookie') ?? '';
+const locale = getLocaleFromCookie(cookies);
+const dir = isRTL(locale) ? 'rtl' : 'ltr';
+const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
+---
+
+<!DOCTYPE html>
+<html lang={locale} dir={dir}>
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>إنشاء متجرك</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Cairo', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #f0f4ff 0%, #e8f5e9 100%); padding: 1rem; }
+    .card { background: white; border-radius: 16px; padding: 2rem; width: 100%; max-width: 480px; box-shadow: 0 8px 40px rgba(0,0,0,0.1); }
+    .step-badge { text-align: center; margin-bottom: 1rem; }
+    .step-pill { display: inline-block; background: #ede9fe; color: #7c3aed; padding: 0.25rem 0.875rem; border-radius: 100px; font-size: 0.8rem; font-weight: 600; }
+    h1 { font-size: 1.5rem; font-weight: 700; text-align: center; margin-bottom: 0.5rem; }
+    .subtitle { text-align: center; color: #6b7280; font-size: 0.875rem; margin-bottom: 1.5rem; line-height: 1.6; }
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.375rem; }
+    input { width: 100%; padding: 0.625rem 0.875rem; border: 1.5px solid #e5e7eb; border-radius: 8px; font-family: inherit; font-size: 0.9rem; outline: none; transition: border-color 0.15s; }
+    input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+    .hint { font-size: 0.75rem; color: #9ca3af; margin-top: 0.25rem; }
+    .slug-preview { font-family: monospace; font-size: 0.8rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.375rem 0.75rem; margin-top: 0.375rem; color: #6366f1; }
+    .btn { width: 100%; padding: 0.875rem; background: #6366f1; color: white; border: none; border-radius: 10px; font-family: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 0.5rem; transition: opacity 0.15s; }
+    .btn:hover:not(:disabled) { opacity: 0.9; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .error-msg { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 0.75rem; border-radius: 8px; font-size: 0.875rem; margin-bottom: 1rem; display: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="step-badge"><span class="step-pill">خطوة 2 من 2</span></div>
+    <h1>🏪 أنشئ متجرك الآن</h1>
+    <p class="subtitle">اختر اسماً لمتجرك. يمكنك تغييره لاحقاً من الإعدادات.</p>
+    <div class="error-msg" id="error-msg"></div>
+    <form id="store-form">
+      <div class="form-group">
+        <label for="store-name">اسم المتجر *</label>
+        <input type="text" id="store-name" required placeholder="متجر الأناقة" minlength="2" maxlength="100" />
+      </div>
+      <div class="form-group">
+        <label for="store-slug">رابط المتجر *</label>
+        <input type="text" id="store-slug" required placeholder="my-store" pattern="[a-z0-9-]+" minlength="2" maxlength="50" />
+        <div class="slug-preview" id="slug-preview">yourdomain.com/store/...</div>
+        <p class="hint">أحرف إنجليزية صغيرة وأرقام وشرطات فقط</p>
+      </div>
+      <button type="submit" class="btn" id="submit-btn">إنشاء المتجر 🚀</button>
+    </form>
+  </div>
+
+  <script define:vars={{ API_URL }}>
+    // Auth check: must have a session
+    const userRaw = localStorage.getItem('auth_user');
+    if (!userRaw) { window.location.href = '/auth/login'; }
+
+    // Auto-generate slug from store name
+    document.getElementById('store-name').addEventListener('input', (e) => {
+      const slug = e.target.value
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '')
+        .replace(/-+/g, '-')
+        .slice(0, 50);
+      document.getElementById('store-slug').value = slug;
+      document.getElementById('slug-preview').textContent = slug
+        ? `متجرك: ${slug}.yourdomain.com`
+        : 'اكتب اسم متجرك...';
+    });
+
+    document.getElementById('store-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      const errorMsg = document.getElementById('error-msg');
+      btn.disabled = true; btn.textContent = 'جاري الإنشاء...';
+      errorMsg.style.display = 'none';
+
+      const name = document.getElementById('store-name').value.trim();
+      const slug = document.getElementById('store-slug').value.trim();
+
+      try {
+        const res = await fetch(`${API_URL}/auth/create-tenant`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ name, slug }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          errorMsg.textContent = data.error ?? 'فشل إنشاء المتجر';
+          errorMsg.style.display = 'block';
+          return;
+        }
+
+        // Cache tenant UI state
+        localStorage.setItem('tenant_id', data.tenantId);
+        localStorage.setItem('tenant_slug', slug);
+        localStorage.setItem('tenant_role', 'owner');
+        localStorage.setItem('tenant_plan', 'free');
+        localStorage.setItem('tenant_name', name);
+
+        window.location.href = '/dashboard';
+
+      } catch {
+        errorMsg.textContent = 'حدث خطأ في الاتصال';
+        errorMsg.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'إنشاء المتجر 🚀';
+      }
+    });
+  </script>
+</body>
+</html>

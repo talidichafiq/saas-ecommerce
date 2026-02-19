@@ -1,0 +1,112 @@
+saas-ecommerce/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml
+├── apps/
+│   ├── api/                          # Cloudflare Worker (Hono)
+│   │   ├── src/
+│   │   │   ├── index.ts              # Worker entry
+│   │   │   ├── env.ts                # Env types
+│   │   │   ├── middleware/
+│   │   │   │   ├── auth.ts
+│   │   │   │   ├── tenant.ts
+│   │   │   │   ├── rbac.ts
+│   │   │   │   └── rateLimit.ts
+│   │   │   └── routes/
+│   │   │       ├── auth.ts
+│   │   │       ├── tenants.ts
+│   │   │       ├── products.ts
+│   │   │       ├── categories.ts
+│   │   │       ├── orders.ts
+│   │   │       ├── billing.ts
+│   │   │       ├── upload.ts
+│   │   │       └── webhook.ts
+│   │   ├── wrangler.toml
+│   │   ├── .env.example
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   └── web/                          # Astro SSR (Cloudflare Pages)
+│       ├── src/
+│       │   ├── components/
+│       │   │   ├── ui/               # shadcn-based
+│       │   │   ├── dashboard/
+│       │   │   │   ├── Sidebar.astro
+│       │   │   │   ├── ProductForm.tsx
+│       │   │   │   ├── OrdersTable.tsx
+│       │   │   │   └── Analytics.tsx
+│       │   │   └── storefront/
+│       │   │       ├── ProductCard.tsx
+│       │   │       ├── Cart.tsx
+│       │   │       ├── Navbar.astro
+│       │   │       └── LanguageSwitch.tsx
+│       │   ├── layouts/
+│       │   │   ├── DashboardLayout.astro
+│       │   │   └── StorefrontLayout.astro
+│       │   ├── pages/
+│       │   │   ├── index.astro        # Landing / redirect
+│       │   │   ├── auth/
+│       │   │   │   ├── login.astro
+│       │   │   │   ├── register.astro
+│       │   │   │   └── forgot.astro
+│       │   │   ├── dashboard/
+│       │   │   │   ├── index.astro
+│       │   │   │   ├── products/
+│       │   │   │   │   ├── index.astro
+│       │   │   │   │   ├── new.astro
+│       │   │   │   │   └── [id].astro
+│       │   │   │   ├── orders/
+│       │   │   │   │   ├── index.astro
+│       │   │   │   │   └── [id].astro
+│       │   │   │   ├── categories/
+│       │   │   │   │   └── index.astro
+│       │   │   │   ├── settings.astro
+│       │   │   │   ├── billing.astro
+│       │   │   │   └── team.astro
+│       │   │   └── store/
+│       │   │       ├── index.astro    # Storefront home
+│       │   │       ├── catalog.astro
+│       │   │       ├── [slug].astro   # Product detail
+│       │   │       ├── cart.astro
+│       │   │       ├── success.astro
+│       │   │       └── search.astro
+│       │   ├── i18n/
+│       │   │   ├── ar.ts
+│       │   │   ├── en.ts
+│       │   │   └── index.ts
+│       │   ├── lib/
+│       │   │   ├── api.ts
+│       │   │   ├── auth.ts
+│       │   │   └── tenant.ts
+│       │   └── env.d.ts
+│       ├── public/
+│       ├── astro.config.mjs
+│       ├── tailwind.config.mjs
+│       ├── .env.example
+│       ├── package.json
+│       └── tsconfig.json
+├── packages/
+│   ├── db/
+│   │   ├── src/
+│   │   │   ├── schema.ts
+│   │   │   ├── client.ts
+│   │   │   └── seed.ts
+│   │   ├── migrations/
+│   │   │   └── 0001_init.sql
+│   │   ├── drizzle.config.ts
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   ├── shared/
+│   │   ├── src/
+│   │   │   ├── types.ts
+│   │   │   ├── schemas.ts
+│   │   │   └── constants.ts
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   └── config/
+│       ├── eslint.js
+│       └── tsconfig.base.json
+├── docs/
+│   └── DEPLOY.md
+├── pnpm-workspace.yaml
+├── package.json
+└── README.md

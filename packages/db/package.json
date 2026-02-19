@@ -1,0 +1,26 @@
+{
+  "name": "@repo/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client.ts",
+    "./schema": "./src/schema.ts"
+  },
+  "scripts": {
+    "generate": "drizzle-kit generate",
+    "migrate": "wrangler d1 migrations apply saas-ecommerce-db --local",
+    "migrate:prod": "wrangler d1 migrations apply saas-ecommerce-db --remote",
+    "seed": "tsx src/seed.ts",
+    "studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.31.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240614.0",
+    "drizzle-kit": "^0.22.7",
+    "tsx": "^4.15.7",
+    "wrangler": "^3.60.0"
+  }
+}

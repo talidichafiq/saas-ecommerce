@@ -1,0 +1,162 @@
+---
+// apps/web/src/pages/dashboard/index.astro
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { getLocaleFromCookie, t } from '../../i18n/index.js';
+
+const cookies = Astro.request.headers.get('cookie') ?? '';
+const locale = getLocaleFromCookie(cookies);
+const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
+---
+
+<DashboardLayout title={t('dashboard.home', locale)} activeNav="home">
+  <!-- Stats row -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem">
+    <div class="stat-card">
+      <div class="stat-icon">💰</div>
+      <div>
+        <p class="stat-label">إيرادات اليوم</p>
+        <p class="stat-value" id="stat-today-rev">—</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🛒</div>
+      <div>
+        <p class="stat-label">طلبات الشهر</p>
+        <p class="stat-value" id="stat-month-orders">—</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">💳</div>
+      <div>
+        <p class="stat-label">إيرادات الشهر</p>
+        <p class="stat-value" id="stat-month-rev">—</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">📦</div>
+      <div>
+        <p class="stat-label">إجمالي الطلبات</p>
+        <p class="stat-value" id="stat-total-orders">—</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plan gate for analytics -->
+  <div id="analytics-gate" class="hidden gate-card">
+    <p class="gate-text">📊 التقارير متاحة في خطة <strong>Pro</strong> وما فوق</p>
+    <a href="/dashboard/billing" class="gate-btn">ترقية الخطة</a>
+  </div>
+
+  <!-- Quick actions -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem">
+    <a href="/dashboard/products/new" class="action-card">
+      <span style="font-size:1.5rem">➕</span>
+      <span>إضافة منتج</span>
+    </a>
+    <a href="/dashboard/orders" class="action-card">
+      <span style="font-size:1.5rem">🛒</span>
+      <span>إدارة الطلبات</span>
+    </a>
+    <a href="/dashboard/billing" class="action-card">
+      <span style="font-size:1.5rem">💳</span>
+      <span>إدارة الاشتراك</span>
+    </a>
+    <a id="store-link" href="#" class="action-card" target="_blank">
+      <span style="font-size:1.5rem">🏪</span>
+      <span>عرض المتجر</span>
+    </a>
+  </div>
+
+  <!-- Recent orders -->
+  <div class="section-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <h3 style="font-size:1rem;font-weight:600">آخر الطلبات</h3>
+      <a href="/dashboard/orders" style="font-size:0.875rem;color:#6366f1">عرض الكل</a>
+    </div>
+    <div id="recent-orders">
+      <p style="text-align:center;color:#94a3b8;padding:2rem;font-size:0.875rem">جاري التحميل...</p>
+    </div>
+  </div>
+</DashboardLayout>
+
+<style>
+  .stat-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1.25rem; display:flex; align-items:center; gap:1rem; }
+  .stat-icon { font-size:2rem; }
+  .stat-label { font-size:0.75rem; color:#64748b; margin-bottom:0.25rem; }
+  .stat-value { font-size:1.5rem; font-weight:700; }
+  .action-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1.25rem; display:flex; align-items:center; gap:0.75rem; font-size:0.875rem; font-weight:600; transition:border-color 0.15s,box-shadow 0.15s; }
+  .action-card:hover { border-color:#6366f1; box-shadow:0 2px 8px rgba(99,102,241,0.1); }
+  .section-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1.5rem; }
+  .gate-card { background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:1rem; display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
+  .gate-text { font-size:0.875rem; color:#1d4ed8; }
+  .gate-btn { background:#6366f1; color:#fff; padding:0.4rem 1rem; border-radius:8px; font-size:0.875rem; font-weight:600; }
+  .hidden { display:none; }
+  .order-row { display:flex; align-items:center; justify-content:space-between; padding:0.75rem 0; border-bottom:1px solid #f1f5f9; font-size:0.875rem; }
+  .order-row:last-child { border-bottom:none; }
+  .badge { display:inline-block; padding:0.2rem 0.6rem; border-radius:100px; font-size:0.75rem; font-weight:600; }
+  .badge-pending { background:#fef3c7; color:#92400e; }
+  .badge-paid { background:#d1fae5; color:#065f46; }
+  .badge-shipped { background:#dbeafe; color:#1e40af; }
+  .badge-cancelled { background:#fee2e2; color:#991b1b; }
+</style>
+
+<script define:vars={{ API_URL }}>
+  const tenantSlug = localStorage.getItem('tenant_slug') ?? '';
+
+  // Update store link
+  const storeLink = document.getElementById('store-link');
+  if (storeLink && tenantSlug) storeLink.href = `/${tenantSlug}`;
+
+  const plan = localStorage.getItem('tenant_plan') ?? 'free';
+
+  // Analytics
+  if (['pro', 'business'].includes(plan)) {
+    fetch(`${API_URL}/dashboard/analytics`, {
+      credentials: 'include',
+      headers: { 'X-Tenant-Slug': tenantSlug },
+    }).then(r => r.json()).then(data => {
+      document.getElementById('stat-today-rev').textContent = `${data.today?.revenue?.toFixed(0) ?? 0} MAD`;
+      document.getElementById('stat-month-orders').textContent = data.month?.orders ?? 0;
+      document.getElementById('stat-month-rev').textContent = `${data.month?.revenue?.toFixed(0) ?? 0} MAD`;
+      document.getElementById('stat-total-orders').textContent = data.total?.orders ?? 0;
+    }).catch(() => {});
+  } else {
+    document.getElementById('analytics-gate').classList.remove('hidden');
+    document.getElementById('stat-today-rev').textContent = '—';
+    document.getElementById('stat-month-orders').textContent = '—';
+    document.getElementById('stat-month-rev').textContent = '—';
+    document.getElementById('stat-total-orders').textContent = '—';
+  }
+
+  // Recent orders
+  fetch(`${API_URL}/dashboard/orders?limit=5`, {
+    credentials: 'include',
+    headers: { 'X-Tenant-Slug': tenantSlug },
+  }).then(r => r.json()).then(data => {
+    const container = document.getElementById('recent-orders');
+    const orders = data.data ?? [];
+
+    if (!orders.length) {
+      container.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:2rem;font-size:0.875rem">لا توجد طلبات بعد</p>';
+      return;
+    }
+
+    const statusLabels = { pending: 'قيد الانتظار', paid: 'مدفوع', shipped: 'تم الشحن', cancelled: 'ملغي', refunded: 'مسترجع' };
+    const statusClass = { pending: 'badge-pending', paid: 'badge-paid', shipped: 'badge-shipped', cancelled: 'badge-cancelled', refunded: 'badge-cancelled' };
+
+    container.innerHTML = orders.map(o => `
+      <div class="order-row">
+        <div>
+          <span style="font-weight:600">#${o.id.slice(-6).toUpperCase()}</span>
+          <span style="color:#94a3b8;margin-inline-start:0.5rem">${o.customerEmail}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.75rem">
+          <span style="font-weight:600">${o.total} ${o.currency}</span>
+          <span class="badge ${statusClass[o.status] ?? ''}">${statusLabels[o.status] ?? o.status}</span>
+        </div>
+      </div>
+    `).join('');
+  }).catch(() => {
+    document.getElementById('recent-orders').innerHTML = '<p style="text-align:center;color:#94a3b8;padding:1rem;font-size:0.875rem">تعذّر تحميل الطلبات</p>';
+  });
+</script>

@@ -1,0 +1,168 @@
+---
+// apps/web/src/pages/dashboard/billing.astro
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { getLocaleFromCookie, t } from '../../i18n/index.js';
+
+const cookies = Astro.request.headers.get('cookie') ?? '';
+const locale = getLocaleFromCookie(cookies);
+const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
+---
+
+<DashboardLayout title="الاشتراك" activeNav="billing">
+  <div class="max-w-4xl">
+    <!-- Current Plan Banner -->
+    <div class="bg-white rounded-xl border p-6 mb-6 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-2xl" id="plan-emoji">💰</div>
+        <div>
+          <p class="text-sm text-muted-foreground">خطتك الحالية</p>
+          <p class="text-xl font-bold" id="plan-label">جاري التحميل...</p>
+          <p class="text-xs text-muted-foreground mt-0.5" id="plan-period"></p>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button id="portal-btn" onclick="openPortal()" class="hidden border px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors">
+          إدارة الاشتراك
+        </button>
+      </div>
+    </div>
+
+    <!-- Plans -->
+    <h3 class="font-semibold mb-4">اختر خطتك</h3>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <!-- Free -->
+      <div class="bg-white rounded-xl border-2 p-5" id="plan-free">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <p class="font-bold text-lg">مجاني</p>
+            <p class="text-3xl font-bold mt-1">0 <span class="text-sm font-normal text-muted-foreground">درهم/شهر</span></p>
+          </div>
+          <span class="text-2xl">🌱</span>
+        </div>
+        <ul class="text-sm space-y-2 text-muted-foreground mb-5">
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> حتى 20 منتج</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> متجر كامل</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Stripe Checkout</li>
+          <li class="flex items-center gap-2"><span class="text-red-400">✗</span> تقارير متقدمة</li>
+          <li class="flex items-center gap-2"><span class="text-red-400">✗</span> فريق عمل</li>
+          <li class="flex items-center gap-2"><span class="text-red-400">✗</span> دومين مخصص</li>
+        </ul>
+        <p class="text-center text-sm text-muted-foreground font-medium py-2">خطتك الحالية</p>
+      </div>
+
+      <!-- Pro -->
+      <div class="bg-white rounded-xl border-2 border-primary p-5 relative">
+        <div class="absolute -top-3 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 bg-primary text-white text-xs px-3 py-1 rounded-full font-medium">
+          الأكثر شعبية
+        </div>
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <p class="font-bold text-lg">احترافي</p>
+            <p class="text-3xl font-bold mt-1">149 <span class="text-sm font-normal text-muted-foreground">درهم/شهر</span></p>
+          </div>
+          <span class="text-2xl">🚀</span>
+        </div>
+        <ul class="text-sm space-y-2 text-muted-foreground mb-5">
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> منتجات غير محدودة</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> متجر كامل</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Stripe Checkout</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> تقارير ومبيعات</li>
+          <li class="flex items-center gap-2"><span class="text-red-400">✗</span> فريق عمل</li>
+          <li class="flex items-center gap-2"><span class="text-red-400">✗</span> دومين مخصص</li>
+        </ul>
+        <button onclick="startCheckout('pro')" class="w-full bg-primary text-white py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
+          ترقية لـ Pro
+        </button>
+      </div>
+
+      <!-- Business -->
+      <div class="bg-white rounded-xl border-2 p-5">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <p class="font-bold text-lg">أعمال</p>
+            <p class="text-3xl font-bold mt-1">349 <span class="text-sm font-normal text-muted-foreground">درهم/شهر</span></p>
+          </div>
+          <span class="text-2xl">🏢</span>
+        </div>
+        <ul class="text-sm space-y-2 text-muted-foreground mb-5">
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> منتجات غير محدودة</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> متجر كامل</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Stripe Checkout</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> تقارير ومبيعات</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> فريق عمل + صلاحيات</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> دومين مخصص</li>
+        </ul>
+        <button onclick="startCheckout('business')" class="w-full border py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors">
+          ترقية لـ Business
+        </button>
+      </div>
+    </div>
+
+    <div id="success-banner" class="hidden bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm mb-4">
+      ✅ تم تفعيل اشتراكك بنجاح! شكراً لك.
+    </div>
+  </div>
+</DashboardLayout>
+
+<script define:vars={{ API_URL }}>
+  const tenantSlug = localStorage.getItem('tenant_slug');
+  const plan = localStorage.getItem('tenant_plan') ?? 'free';
+
+  // Check URL params for success/cancel
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('success')) {
+    document.getElementById('success-banner').classList.remove('hidden');
+  }
+
+  // Load billing status
+  fetch(`${API_URL}/billing/status`, {
+    headers: { 'X-Tenant-Slug': tenantSlug }, credentials: 'include'
+  }).then(r => r.json()).then(data => {
+    const planEmojis = { free: '🌱', pro: '🚀', business: '🏢' };
+    const planNames = { free: 'مجاني', pro: 'احترافي', business: 'أعمال' };
+    document.getElementById('plan-emoji').textContent = planEmojis[data.plan] ?? '💰';
+    document.getElementById('plan-label').textContent = planNames[data.plan] ?? data.plan;
+
+    if (data.currentPeriodEnd) {
+      const endDate = new Date(data.currentPeriodEnd).toLocaleDateString('ar-MA', { year: 'numeric', month: 'long', day: 'numeric' });
+      document.getElementById('plan-period').textContent = `يتجدد في ${endDate}`;
+    }
+
+    if (data.stripeCustomerId) {
+      document.getElementById('portal-btn').classList.remove('hidden');
+    }
+
+    // Highlight current plan card
+    const planCard = document.getElementById(`plan-${data.plan}`);
+    if (planCard) planCard.classList.add('ring-2', 'ring-primary');
+  }).catch(() => {});
+
+  async function startCheckout(targetPlan) {
+    try {
+      const res = await fetch(`${API_URL}/billing/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Tenant-Slug': tenantSlug },
+        body: JSON.stringify({ plan: targetPlan, interval: 'monthly' }),
+      });
+      const data = await res.json();
+      if (data.checkoutUrl) window.location.href = data.checkoutUrl;
+      else alert(data.error ?? 'حدث خطأ');
+    } catch (err) {
+      alert('حدث خطأ في الاتصال');
+    }
+  }
+
+  async function openPortal() {
+    try {
+      const res = await fetch(`${API_URL}/billing/portal`, {
+        method: 'POST',
+        headers: { 'X-Tenant-Slug': tenantSlug }, credentials: 'include',
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch {}
+  }
+
+  window.startCheckout = startCheckout;
+  window.openPortal = openPortal;
+</script>

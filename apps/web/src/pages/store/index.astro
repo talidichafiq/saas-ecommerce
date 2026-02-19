@@ -1,0 +1,135 @@
+---
+// apps/web/src/pages/store/index.astro
+import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
+import { getLocaleFromCookie, t } from '../../i18n/index.js';
+
+const cookies = Astro.request.headers.get('cookie') ?? '';
+const locale = getLocaleFromCookie(cookies);
+
+// Resolve tenant from host header
+const host = Astro.request.headers.get('host') ?? '';
+const slug = host.split('.')[0];
+const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
+
+// Fetch tenant info + products server-side for SEO
+let tenantName = 'متجرنا';
+let featuredProducts: any[] = [];
+let categories: any[] = [];
+
+try {
+  const [productsRes, catsRes] = await Promise.all([
+    fetch(`${API_URL}/store/products?limit=8&status=active`, {
+      headers: { 'X-Tenant-Slug': slug }
+    }),
+    fetch(`${API_URL}/store/categories`, {
+      headers: { 'X-Tenant-Slug': slug }
+    }),
+  ]);
+
+  if (productsRes.ok) {
+    const data = await productsRes.json();
+    featuredProducts = data.data ?? [];
+  }
+  if (catsRes.ok) {
+    const data = await catsRes.json();
+    categories = data.data ?? [];
+  }
+} catch (e) {
+  // Store not found or API unavailable - show empty state
+}
+---
+
+<StorefrontLayout title="الرئيسية" tenantName={tenantName}>
+  <!-- Hero -->
+  <section class="bg-gradient-to-br from-primary/5 to-purple-50 py-20">
+    <div class="container text-center">
+      <h1 class="text-4xl md:text-5xl font-bold mb-4">مرحباً بك في {tenantName}</h1>
+      <p class="text-muted-foreground text-lg mb-8">اكتشف أفضل المنتجات بأسعار مميزة</p>
+      <div class="flex gap-3 justify-center flex-wrap">
+        <a href="/catalog" class="bg-primary text-white px-8 py-3 rounded-full font-semibold hover:bg-primary/90 transition-colors">
+          {t('nav.catalog', locale)}
+        </a>
+        <a href="/search" class="border-2 border-primary text-primary px-8 py-3 rounded-full font-semibold hover:bg-primary/5 transition-colors">
+          {t('nav.search', locale)}
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Categories -->
+  {categories.length > 0 && (
+    <section class="py-12">
+      <div class="container">
+        <h2 class="text-2xl font-bold mb-6">التصنيفات</h2>
+        <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+          <a href="/catalog" class="flex-shrink-0 px-5 py-2.5 rounded-full border-2 border-primary bg-primary text-white text-sm font-medium">
+            الكل
+          </a>
+          {categories.map(cat => (
+            <a
+              href={`/catalog?category=${cat.slug}`}
+              class="flex-shrink-0 px-5 py-2.5 rounded-full border text-sm font-medium hover:border-primary hover:text-primary transition-colors"
+            >
+              {cat.name}
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  <!-- Featured Products -->
+  <section class="py-12">
+    <div class="container">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold">المنتجات المميزة</h2>
+        <a href="/catalog" class="text-sm text-primary hover:underline font-medium">عرض الكل ←</a>
+      </div>
+      {featuredProducts.length === 0 ? (
+        <div class="text-center py-20 text-muted-foreground">
+          <div class="text-5xl mb-4">📦</div>
+          <p>لا توجد منتجات بعد</p>
+        </div>
+      ) : (
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {featuredProducts.map(product => (
+            <a href={`/product/${product.id}`} class="group bg-white rounded-xl border hover:border-primary hover:shadow-lg transition-all">
+              <div class="aspect-square bg-muted rounded-t-xl overflow-hidden">
+                {product.images?.[0] ? (
+                  <img
+                    src={product.images[0].url}
+                    alt={product.images[0].alt ?? product.title}
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div class="w-full h-full flex items-center justify-center text-4xl">📦</div>
+                )}
+              </div>
+              <div class="p-4">
+                <h3 class="font-medium text-sm line-clamp-2 mb-2 group-hover:text-primary transition-colors">
+                  {product.title}
+                </h3>
+                <div class="flex items-center justify-between">
+                  <div>
+                    {product.salePrice ? (
+                      <div>
+                        <span class="font-bold text-primary">{product.salePrice} {product.currency}</span>
+                        <span class="text-xs text-muted-foreground line-through ms-1">{product.price}</span>
+                      </div>
+                    ) : (
+                      <span class="font-bold">{product.price} {product.currency}</span>
+                    )}
+                  </div>
+                  {product.stock === 0 && (
+                    <span class="text-xs text-red-500">نفد</span>
+                  )}
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  </section>
+</StorefrontLayout>

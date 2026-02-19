@@ -1,0 +1,180 @@
+---
+// apps/web/src/pages/store/cart.astro
+import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
+import { getLocaleFromCookie, t } from '../../i18n/index.js';
+
+const cookies = Astro.request.headers.get('cookie') ?? '';
+const locale = getLocaleFromCookie(cookies);
+const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
+const host = Astro.request.headers.get('host') ?? '';
+const tenantSlug = host.split('.')[0];
+---
+
+<StorefrontLayout title={t('cart.title', locale)}>
+  <div class="container py-8 max-w-3xl">
+    <h1 class="text-2xl font-bold mb-6">{t('cart.title', locale)}</h1>
+
+    <!-- Empty state -->
+    <div id="cart-empty" class="hidden text-center py-20">
+      <div class="text-6xl mb-4">🛒</div>
+      <p class="text-muted-foreground mb-4">{t('cart.empty', locale)}</p>
+      <a href="/catalog" class="bg-primary text-white px-6 py-2.5 rounded-xl font-medium hover:bg-primary/90 transition-colors">
+        {t('cart.continue_shopping', locale)}
+      </a>
+    </div>
+
+    <!-- Cart items -->
+    <div id="cart-content" class="hidden">
+      <div id="cart-items" class="space-y-3 mb-6"></div>
+
+      <!-- Summary -->
+      <div class="bg-white rounded-xl border p-5">
+        <div class="flex justify-between text-sm mb-2">
+          <span class="text-muted-foreground">{t('cart.subtotal', locale)}</span>
+          <span id="cart-subtotal" class="font-medium">0</span>
+        </div>
+        <div class="border-t my-3"></div>
+        <div class="flex justify-between font-bold text-lg mb-4">
+          <span>{t('cart.total', locale)}</span>
+          <span id="cart-total">0</span>
+        </div>
+
+        <div class="mb-3">
+          <label class="block text-sm font-medium mb-1">البريد الإلكتروني *</label>
+          <input type="email" id="customer-email" placeholder="you@example.com" class="w-full border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" required />
+        </div>
+
+        <div id="checkout-error" class="hidden bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-lg text-sm mb-3"></div>
+
+        <button
+          id="checkout-btn"
+          onclick="startCheckout()"
+          class="w-full bg-primary text-white py-3 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors"
+        >
+          {t('cart.checkout', locale)}
+        </button>
+        <a href="/catalog" class="block text-center mt-3 text-sm text-muted-foreground hover:text-foreground">
+          {t('cart.continue_shopping', locale)}
+        </a>
+      </div>
+    </div>
+  </div>
+</StorefrontLayout>
+
+<script define:vars={{ API_URL, tenantSlug, locale }}>
+  // Import from lib
+  function getCart() {
+    try { return JSON.parse(localStorage.getItem('saas_cart') ?? '[]'); } catch { return []; }
+  }
+  function saveCart(items) { localStorage.setItem('saas_cart', JSON.stringify(items)); }
+
+  function renderCart() {
+    const items = getCart();
+    const currency = items[0]?.currency ?? 'MAD';
+
+    if (!items.length) {
+      document.getElementById('cart-empty').classList.remove('hidden');
+      document.getElementById('cart-content').classList.add('hidden');
+      return;
+    }
+
+    document.getElementById('cart-empty').classList.add('hidden');
+    document.getElementById('cart-content').classList.remove('hidden');
+
+    const subtotal = items.reduce((acc, i) => acc + (i.salePrice ?? i.price) * i.qty, 0);
+
+    document.getElementById('cart-subtotal').textContent = `${subtotal.toFixed(2)} ${currency}`;
+    document.getElementById('cart-total').textContent = `${subtotal.toFixed(2)} ${currency}`;
+
+    document.getElementById('cart-items').innerHTML = items.map(item => `
+      <div class="bg-white rounded-xl border p-4 flex gap-4 items-center" data-product-id="${item.productId}">
+        <div class="w-16 h-16 bg-muted rounded-lg overflow-hidden flex-shrink-0">
+          ${item.imageUrl ? `<img src="${item.imageUrl}" alt="${item.title}" class="w-full h-full object-cover" />` : '<div class="w-full h-full flex items-center justify-center text-2xl">📦</div>'}
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-medium text-sm line-clamp-2">${item.title}</p>
+          <p class="text-sm text-primary font-bold mt-0.5">${(item.salePrice ?? item.price).toFixed(2)} ${item.currency ?? 'MAD'}</p>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <button onclick="updateQty('${item.productId}', ${item.qty - 1})" class="w-7 h-7 border rounded-full flex items-center justify-center hover:bg-muted text-sm">−</button>
+          <span class="w-8 text-center text-sm font-medium">${item.qty}</span>
+          <button onclick="updateQty('${item.productId}', ${item.qty + 1})" class="w-7 h-7 border rounded-full flex items-center justify-center hover:bg-muted text-sm">+</button>
+          <button onclick="removeItem('${item.productId}')" class="w-7 h-7 text-red-400 hover:text-red-600 ms-1 text-lg leading-none">×</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function updateQty(productId, qty) {
+    let items = getCart();
+    if (qty <= 0) {
+      items = items.filter(i => i.productId !== productId);
+    } else {
+      const item = items.find(i => i.productId === productId);
+      if (item) item.qty = Math.min(qty, item.stock ?? qty);
+    }
+    saveCart(items);
+    renderCart();
+  }
+
+  function removeItem(productId) {
+    saveCart(getCart().filter(i => i.productId !== productId));
+    renderCart();
+  }
+
+  async function startCheckout() {
+    const email = document.getElementById('customer-email').value;
+    const errorEl = document.getElementById('checkout-error');
+    const btn = document.getElementById('checkout-btn');
+
+    if (!email || !email.includes('@')) {
+      errorEl.textContent = locale === 'ar' ? 'يرجى إدخال بريد إلكتروني صحيح' : 'Please enter a valid email';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+
+    const items = getCart();
+    if (!items.length) return;
+
+    btn.disabled = true;
+    btn.textContent = locale === 'ar' ? 'جاري التحويل لـ Stripe...' : 'Redirecting to Stripe...';
+    errorEl.classList.add('hidden');
+
+    try {
+      const res = await fetch(`${API_URL}/store/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Tenant-Slug': tenantSlug },
+        body: JSON.stringify({
+          items: items.map(i => ({ productId: i.productId, qty: i.qty })),
+          customerEmail: email,
+          currency: items[0]?.currency ?? 'MAD',
+          successUrl: `${window.location.origin}/success`,
+          cancelUrl: `${window.location.origin}/cart`,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        errorEl.textContent = data.error ?? (locale === 'ar' ? 'حدث خطأ' : 'An error occurred');
+        errorEl.classList.remove('hidden');
+        return;
+      }
+
+      // Clear cart and redirect
+      localStorage.removeItem('saas_cart');
+      window.location.href = data.checkoutUrl;
+    } catch (err) {
+      errorEl.textContent = locale === 'ar' ? 'حدث خطأ في الاتصال' : 'Connection error';
+      errorEl.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = locale === 'ar' ? 'إتمام الشراء' : 'Checkout';
+    }
+  }
+
+  window.updateQty = updateQty;
+  window.removeItem = removeItem;
+  window.startCheckout = startCheckout;
+
+  renderCart();
+</script>
