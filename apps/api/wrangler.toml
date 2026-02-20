@@ -88,8 +88,7 @@ CORS_ORIGINS = "https://saas-ecommerce-web.pages.dev"
 [[env.production.d1_databases]]
 binding       = "DB"
 database_name = "saas-ecommerce-db"
-database_id   = "b8399644-8850-4b77-980b-7a88b0eee98f"   # ← ← ← اكتب ID الحقيقي هنا
-
+database_id   = "b8399644-8850-4b77-980b-7a88b0eee98f"   
 # ── R2 ────────────────────────────────────────────────────────────
 [[env.production.r2_buckets]]
 binding     = "R2"
@@ -99,8 +98,7 @@ bucket_name = "saas-ecommerce-uploads"
 # شغّل: wrangler kv namespace list  ← انسخ id بجانب "RATE_LIMIT"
 [[env.production.kv_namespaces]]
 binding = "KV_RATE_LIMIT"
-id      = "8cb76f725eac4112b71abc97de50bad7"         # ← ← ← اكتب ID الحقيقي هنا
-
+id      = "8cb76f725eac4112b71abc97de50bad7"         
 # ══════════════════════════════════════════════════════════════════
 # PREVIEW / STAGING (اختياري)
 # ══════════════════════════════════════════════════════════════════
