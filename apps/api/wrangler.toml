@@ -25,7 +25,7 @@ API_URL        = "https://api.yourdomain.com"
 [[d1_databases]]
 binding       = "DB"
 database_name = "saas-ecommerce-db"
-database_id   = "YOUR_D1_DATABASE_ID"   # wrangler d1 create saas-ecommerce-db
+database_id   = "b8399644-8850-4b77-980b-7a88b0eee98f"   # wrangler d1 create saas-ecommerce-db
 
 # ─── R2 Bucket ──────────────────────────────────────────────
 [[r2_buckets]]
@@ -60,7 +60,7 @@ API_URL = "https://api.yourdomain.com"
 [[env.production.d1_databases]]
 binding       = "DB"
 database_name = "saas-ecommerce-db"
-database_id   = "YOUR_D1_DATABASE_ID"
+database_id   = "b8399644-8850-4b77-980b-7a88b0eee98f"
 
 [[env.production.r2_buckets]]
 binding     = "R2"
