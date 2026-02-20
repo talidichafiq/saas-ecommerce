@@ -37,13 +37,14 @@ bucket_name = "saas-ecommerce-uploads"
 binding = "KV_RATE_LIMIT"
 id      = "8cb76f725eac4112b71abc97de50bad7"
 # ─── Durable Objects (login rate limiting — strong consistency) ─
+
 [[durable_objects.bindings]]
 name       = "RATE_LIMITER_DO"
 class_name = "RateLimiterDO"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["RateLimiterDO"]
+new_sqlite_classes = ["RateLimiterDO"]
 
 # ═══════════════════════════════════════════════════════════════
 # ENVIRONMENTS
