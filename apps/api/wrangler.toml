@@ -25,7 +25,7 @@ name               = "saas-ecommerce-api"
 main               = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
-workers_dev        = false
+workers_dev = true
 
 # ─── Durable Objects ─────────────────────────────────────────────
 # new_sqlite_classes مطلوبة في Free plan (بدل new_classes)
@@ -70,7 +70,7 @@ ip             = "127.0.0.1"
 name               = "saas-ecommerce"       # ← اسم الـ Worker في Cloudflare dashboard
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
-workers_dev        = false
+workers_dev = true
 
 [[env.production.durable_objects.bindings]]
 name       = "RATE_LIMITER_DO"
