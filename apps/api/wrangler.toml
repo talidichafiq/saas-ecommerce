@@ -35,8 +35,7 @@ bucket_name = "saas-ecommerce-uploads"
 # ─── KV (public API rate limiting — eventual consistency OK) ─
 [[kv_namespaces]]
 binding = "KV_RATE_LIMIT"
-id      = "YOUR_KV_NAMESPACE_ID"        # wrangler kv:namespace create RATE_LIMIT
-
+id      = "8cb76f725eac4112b71abc97de50bad7"
 # ─── Durable Objects (login rate limiting — strong consistency) ─
 [[durable_objects.bindings]]
 name       = "RATE_LIMITER_DO"
@@ -69,7 +68,7 @@ bucket_name = "saas-ecommerce-uploads"
 
 [[env.production.kv_namespaces]]
 binding = "KV_RATE_LIMIT"
-id      = "YOUR_KV_NAMESPACE_ID"
+id      = "8cb76f725eac4112b71abc97de50bad7"
 
 [[env.production.durable_objects.bindings]]
 name       = "RATE_LIMITER_DO"
