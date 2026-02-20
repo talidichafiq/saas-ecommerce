@@ -1,110 +1,106 @@
 # apps/api/wrangler.toml
 #
-# ✅ إصلاحات:
-#   - حذف التكرار في d1_databases
-#   - environments مفصولة (production / preview / local)
-#   - Durable Object binding للـ rate limiter
-#   - Secrets واضحة (لا قيم hardcoded)
+# ══════════════════════════════════════════════════════════════════
+# CRITICAL — قبل أي deploy، ضع IDs الحقيقية في env.production
+# ══════════════════════════════════════════════════════════════════
+#
+# 1) احصل على IDs:
+#      wrangler d1 list                  ← database_id
+#      wrangler kv namespace list        ← KV id
+#
+# 2) استبدل "REPLACE_WITH_REAL_D1_ID" و "REPLACE_WITH_REAL_KV_ID"
+#    في [env.production] بالقيم الحقيقية ثم commit.
+#
+# 3) Secrets (تُضبط مرة واحدة، لا تُكتب هنا أبداً):
+#      wrangler secret put STRIPE_SECRET_KEY --env production
+#      wrangler secret put STRIPE_WEBHOOK_SECRET --env production
+#      wrangler secret put RESEND_API_KEY --env production
+#      wrangler secret put ADMIN_SECRET --env production
+#
+# ملاحظة: Workers Builds يتجاهل bindings في dashboard ويقرأ من هذا الملف.
+# ══════════════════════════════════════════════════════════════════
 
-name = "saas-ecommerce-api"
-main = "src/index.ts"
+# ─── Top-level = wrangler dev فقط (local) ─────────────────────
+name               = "saas-ecommerce-api"
+main               = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
+workers_dev        = false
 
-# ─── Shared Vars (non-secret) ────────────────────────────────
-[vars]
-APP_URL        = "https://app.yourdomain.com"
-API_URL        = "https://api.yourdomain.com"
-# CORS_ORIGINS is validated in code via regex — not stored here
-# Secrets (never put in wrangler.toml):
-#   STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
-#   RESEND_API_KEY, ADMIN_SECRET
-#   → Set via: wrangler secret put <SECRET_NAME>
-
-# ─── D1 Database (ONE definition) ───────────────────────────
-[[d1_databases]]
-binding       = "DB"
-database_name = "saas-ecommerce-db"
-database_id   = "b8399644-8850-4b77-980b-7a88b0eee98f"   # wrangler d1 create saas-ecommerce-db
-
-# ─── R2 Bucket ──────────────────────────────────────────────
-[[r2_buckets]]
-binding     = "R2"
-bucket_name = "saas-ecommerce-uploads"
-
-# ─── KV (public API rate limiting — eventual consistency OK) ─
-[[kv_namespaces]]
-binding = "KV_RATE_LIMIT"
-id      = "8cb76f725eac4112b71abc97de50bad7"
-# ─── Durable Objects (login rate limiting — strong consistency) ─
-
+# ─── Durable Objects ─────────────────────────────────────────────
+# new_sqlite_classes مطلوبة في Free plan (بدل new_classes)
 [[durable_objects.bindings]]
 name       = "RATE_LIMITER_DO"
 class_name = "RateLimiterDO"
 
 [[migrations]]
-tag = "v1"
+tag                = "v1"
 new_sqlite_classes = ["RateLimiterDO"]
 
-# ═══════════════════════════════════════════════════════════════
-# ENVIRONMENTS
-# ═══════════════════════════════════════════════════════════════
-
-# ─── Production ──────────────────────────────────────────────
-[env.production]
-name = "saas-ecommerce-api"
-
-[env.production.vars]
-APP_URL = "https://app.yourdomain.com"
-API_URL = "https://api.yourdomain.com"
-
-[[env.production.d1_databases]]
+# ─── Local dev bindings (wrangler dev يحاكيها محلياً) ────────────
+[[d1_databases]]
 binding       = "DB"
 database_name = "saas-ecommerce-db"
 database_id   = "b8399644-8850-4b77-980b-7a88b0eee98f"
 
-[[env.production.r2_buckets]]
+[[r2_buckets]]
 binding     = "R2"
 bucket_name = "saas-ecommerce-uploads"
 
-[[env.production.kv_namespaces]]
+[[kv_namespaces]]
 binding = "KV_RATE_LIMIT"
 id      = "8cb76f725eac4112b71abc97de50bad7"
+
+[vars]
+APP_URL      = "http://localhost:4321"
+API_URL      = "http://localhost:8787"
+CORS_ORIGINS = "http://localhost:4321,http://localhost:3000"
+
+[dev]
+port           = 8787
+local_protocol = "http"
+ip             = "127.0.0.1"
+
+# ══════════════════════════════════════════════════════════════════
+# PRODUCTION
+# Deploy:  pnpm -C apps/api deploy:prod
+#     أو:  wrangler deploy --env production (من داخل apps/api)
+# ══════════════════════════════════════════════════════════════════
+[env.production]
+name               = "saas-ecommerce"       # ← اسم الـ Worker في Cloudflare dashboard
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+workers_dev        = false
 
 [[env.production.durable_objects.bindings]]
 name       = "RATE_LIMITER_DO"
 class_name = "RateLimiterDO"
 
-# ─── Preview / Staging ───────────────────────────────────────
-[env.preview]
-name = "saas-ecommerce-api-preview"
+[env.production.vars]
+# قيم public — آمن commit
+APP_URL      = "https://saas-ecommerce-web.pages.dev"
+API_URL      = "https://saas-ecommerce.talidichafiq.workers.dev"
+CORS_ORIGINS = "https://saas-ecommerce-web.pages.dev"
+# عند إضافة domain مخصص: CORS_ORIGINS = "https://yourdomain.com,https://saas-ecommerce-web.pages.dev"
 
-[env.preview.vars]
-APP_URL = "https://preview.yourdomain.com"
-API_URL = "https://api-preview.yourdomain.com"
-
-[[env.preview.d1_databases]]
+# ── D1 ────────────────────────────────────────────────────────────
+# شغّل: wrangler d1 list  ← انسخ database_id من النتيجة
+[[env.production.d1_databases]]
 binding       = "DB"
-database_name = "saas-ecommerce-db-preview"
-database_id   = "YOUR_PREVIEW_D1_DATABASE_ID"
+database_name = "saas-ecommerce-db"
+database_id   = "b8399644-8850-4b77-980b-7a88b0eee98f"   # ← ← ← اكتب ID الحقيقي هنا
 
-[[env.preview.r2_buckets]]
+# ── R2 ────────────────────────────────────────────────────────────
+[[env.production.r2_buckets]]
 binding     = "R2"
-bucket_name = "saas-ecommerce-uploads-preview"
+bucket_name = "saas-ecommerce-uploads"
 
-[[env.preview.kv_namespaces]]
+# ── KV ────────────────────────────────────────────────────────────
+# شغّل: wrangler kv namespace list  ← انسخ id بجانب "RATE_LIMIT"
+[[env.production.kv_namespaces]]
 binding = "KV_RATE_LIMIT"
-id      = "YOUR_PREVIEW_KV_NAMESPACE_ID"
+id      = "8cb76f725eac4112b71abc97de50bad7"         # ← ← ← اكتب ID الحقيقي هنا
 
-[[env.preview.durable_objects.bindings]]
-name       = "RATE_LIMITER_DO"
-class_name = "RateLimiterDO"
-
-# ─── Local Development ────────────────────────────────────────
-[dev]
-port           = 8787
-local_protocol = "http"
-ip             = "0.0.0.0"
-
-# Local dev uses --local flag automatically with wrangler dev
-# D1, R2, KV are all mocked locally by wrangler
+# ══════════════════════════════════════════════════════════════════
+# PREVIEW / STAGING (اختياري)
+# ══════════════════════════════════════════════════════════════════
