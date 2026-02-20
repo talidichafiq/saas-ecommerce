@@ -44,11 +44,15 @@ export const createCategorySchema = z.object({
   slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),
 });
 
+// ─── Order schemas ────────────────────────────────────────────
+
 export const updateOrderStatusSchema = z.object({
-  status: z.enum(['pending', 'paid', 'shipped', 'cancelled', 'refunded']),
+  status: z.enum(['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'refunded']),
+  paymentStatus: z.enum(['PAID', 'UNPAID', 'PENDING', 'FAILED']).optional(),
   note: z.string().max(500).optional(),
 });
 
+// Stripe checkout — requires successUrl + cancelUrl for redirect
 export const checkoutSchema = z.object({
   items: z.array(z.object({
     productId: z.string(),
@@ -60,6 +64,19 @@ export const checkoutSchema = z.object({
   cancelUrl: z.string().url(),
 });
 
+// COD checkout — no Stripe, customer delivery info required
+export const codCheckoutSchema = z.object({
+  items: z.array(z.object({
+    productId: z.string().uuid('Invalid product ID'),
+    qty: z.number().int().min(1).max(100),
+  })).min(1, 'At least one item required').max(50),
+  customerEmail: z.string().email(),
+  customerName: z.string().min(2).max(100),
+  customerPhone: z.string().min(8).max(20),
+  customerAddress: z.string().min(10).max(500),
+  currency: z.enum(['MAD', 'EUR', 'USD']).default('MAD'),
+});
+
 export const forgotPasswordSchema = z.object({
   email: z.string().email(),
 });
@@ -69,6 +86,7 @@ export const resetPasswordSchema = z.object({
   password: z.string().min(8),
 });
 
+// ─── Type exports (each exported exactly once) ────────────────
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateTenantInput = z.infer<typeof createTenantSchema>;
@@ -78,3 +96,4 @@ export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
+export type CodCheckoutInput = z.infer<typeof codCheckoutSchema>;

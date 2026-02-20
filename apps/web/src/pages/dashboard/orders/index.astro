@@ -1,5 +1,6 @@
 ---
 // apps/web/src/pages/dashboard/orders/index.astro
+// Updated: COD support — payment method badge, payment status, action buttons
 import DashboardLayout from '../../../layouts/DashboardLayout.astro';
 import { getLocaleFromCookie, t } from '../../../i18n/index.js';
 
@@ -8,140 +9,344 @@ const locale = getLocaleFromCookie(cookies);
 const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
 ---
 
-<DashboardLayout title={t('dashboard.orders', locale)} activeNav="orders">
+<DashboardLayout title={t('orders.title', locale)} activeNav="orders">
   <div>
-    <!-- Filters -->
+
+    <!-- Filters bar -->
     <div style="display:flex;gap:0.75rem;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap">
-      <select id="status-filter" style="border:1px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.875rem;font-family:inherit;font-size:0.875rem;outline:none">
-        <option value="">كل الطلبات</option>
-        <option value="pending">قيد الانتظار</option>
-        <option value="paid">مدفوع</option>
-        <option value="shipped">تم الشحن</option>
-        <option value="cancelled">ملغي</option>
-        <option value="refunded">مسترجع</option>
+      <select id="status-filter"
+        style="border:1px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.875rem;font-family:inherit;font-size:0.875rem;outline:none;background:#fff">
+        <option value="">{locale === 'ar' ? 'كل الطلبات' : 'All Orders'}</option>
+        <option value="pending">{t('orders.status.pending', locale)}</option>
+        <option value="paid">{t('orders.status.paid', locale)}</option>
+        <option value="shipped">{t('orders.status.shipped', locale)}</option>
+        <option value="delivered">{t('orders.status.delivered', locale)}</option>
+        <option value="cancelled">{t('orders.status.cancelled', locale)}</option>
+        <option value="refunded">{t('orders.status.refunded', locale)}</option>
       </select>
-      <span id="total-count" style="font-size:0.875rem;color:#64748b"></span>
+
+      <select id="payment-filter"
+        style="border:1px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.875rem;font-family:inherit;font-size:0.875rem;outline:none;background:#fff">
+        <option value="">{locale === 'ar' ? 'كل طرق الدفع' : 'All Payment Methods'}</option>
+        <option value="STRIPE">{t('orders.payment_method.STRIPE', locale)}</option>
+        <option value="COD">{t('orders.payment_method.COD', locale)}</option>
+      </select>
+
+      <span id="total-count" style="font-size:0.875rem;color:#64748b;margin-inline-start:auto"></span>
+    </div>
+
+    <!-- COD pending alert -->
+    <div id="cod-alert" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:0.875rem 1rem;margin-bottom:1rem;font-size:0.8rem;color:#92400e">
+      <span id="cod-alert-text"></span>
     </div>
 
     <!-- Table -->
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
-      <table style="width:100%;border-collapse:collapse;font-size:0.875rem">
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:0.875rem;min-width:700px">
         <thead>
           <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">
-            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569">رقم الطلب</th>
-            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569">العميل</th>
-            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569">الإجمالي</th>
-            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569">الحالة</th>
-            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569">التاريخ</th>
+            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569;white-space:nowrap">{t('orders.id', locale)}</th>
+            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569">{t('orders.customer', locale)}</th>
+            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569;white-space:nowrap">{t('orders.payment_method', locale)}</th>
+            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569;white-space:nowrap">{t('orders.total', locale)}</th>
+            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569">{t('orders.status', locale)}</th>
+            <th style="text-align:start;padding:0.875rem 1rem;font-weight:600;color:#475569;white-space:nowrap">{t('orders.date', locale)}</th>
             <th style="padding:0.875rem 1rem"></th>
           </tr>
         </thead>
         <tbody id="orders-tbody">
-          <tr><td colspan="6" style="text-align:center;padding:3rem;color:#94a3b8">جاري التحميل...</td></tr>
+          <tr><td colspan="7" style="text-align:center;padding:3rem;color:#94a3b8">
+            {locale === 'ar' ? 'جاري التحميل...' : 'Loading...'}
+          </td></tr>
         </tbody>
       </table>
     </div>
 
     <div id="pagination" style="display:flex;justify-content:center;gap:0.5rem;margin-top:1rem"></div>
 
-    <!-- Status Update Modal -->
-    <div id="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;align-items:center;justify-content:center">
-      <div style="background:#fff;border-radius:16px;padding:1.5rem;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
-        <h3 style="font-size:1rem;font-weight:600;margin-bottom:1rem">تحديث حالة الطلب</h3>
+    <!-- ── Status Update Modal ─────────────────────────────── -->
+    <div id="modal-overlay"
+      style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;align-items:center;justify-content:center">
+      <div style="background:#fff;border-radius:16px;padding:1.5rem;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,0.2);margin:1rem">
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <h3 style="font-size:1rem;font-weight:600">
+            {locale === 'ar' ? 'تحديث حالة الطلب' : 'Update Order Status'}
+          </h3>
+          <span id="modal-payment-badge"
+            style="font-size:0.7rem;font-weight:700;padding:0.2rem 0.5rem;border-radius:100px"></span>
+        </div>
+
         <input type="hidden" id="modal-order-id" />
-        <div class="form-group" style="margin-bottom:1rem">
-          <label style="display:block;font-size:0.875rem;font-weight:500;margin-bottom:0.375rem">الحالة الجديدة</label>
-          <select id="modal-status" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.625rem 0.875rem;font-family:inherit;font-size:0.9rem;outline:none">
-            <option value="pending">قيد الانتظار</option>
-            <option value="paid">مدفوع</option>
-            <option value="shipped">تم الشحن</option>
-            <option value="cancelled">ملغي</option>
-            <option value="refunded">مسترجع</option>
+        <input type="hidden" id="modal-payment-method" />
+
+        <!-- Fulfillment status -->
+        <div style="margin-bottom:0.875rem">
+          <label style="display:block;font-size:0.8rem;font-weight:500;margin-bottom:0.375rem">
+            {locale === 'ar' ? 'حالة الطلب' : 'Order Status'}
+          </label>
+          <select id="modal-status"
+            style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.625rem 0.875rem;font-family:inherit;font-size:0.875rem;outline:none;background:#fff">
+            <option value="pending">{t('orders.status.pending', locale)}</option>
+            <option value="paid">{t('orders.status.paid', locale)}</option>
+            <option value="shipped">{t('orders.status.shipped', locale)}</option>
+            <option value="delivered">{t('orders.status.delivered', locale)}</option>
+            <option value="cancelled">{t('orders.status.cancelled', locale)}</option>
+            <option value="refunded">{t('orders.status.refunded', locale)}</option>
           </select>
         </div>
-        <div class="form-group" style="margin-bottom:1rem">
-          <label style="display:block;font-size:0.875rem;font-weight:500;margin-bottom:0.375rem">ملاحظة (اختياري)</label>
-          <input id="modal-note" type="text" maxlength="500" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.625rem 0.875rem;font-family:inherit;font-size:0.9rem;outline:none" />
+
+        <!-- Payment status (COD only — shown conditionally) -->
+        <div id="modal-payment-status-group" style="display:none;margin-bottom:0.875rem">
+          <label style="display:block;font-size:0.8rem;font-weight:500;margin-bottom:0.375rem">
+            {locale === 'ar' ? 'حالة الدفع' : 'Payment Status'}
+          </label>
+          <select id="modal-payment-status"
+            style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.625rem 0.875rem;font-family:inherit;font-size:0.875rem;outline:none;background:#fff">
+            <option value="UNPAID">{t('orders.payment_status.UNPAID', locale)}</option>
+            <option value="PAID">{t('orders.payment_status.PAID', locale)}</option>
+            <option value="PENDING">{t('orders.payment_status.PENDING', locale)}</option>
+            <option value="FAILED">{t('orders.payment_status.FAILED', locale)}</option>
+          </select>
         </div>
+
+        <!-- Note -->
+        <div style="margin-bottom:1rem">
+          <label style="display:block;font-size:0.8rem;font-weight:500;margin-bottom:0.375rem">
+            {locale === 'ar' ? 'ملاحظة (اختياري)' : 'Note (optional)'}
+          </label>
+          <input id="modal-note" type="text" maxlength="500"
+            style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.625rem 0.875rem;font-family:inherit;font-size:0.875rem;outline:none;box-sizing:border-box" />
+        </div>
+
+        <!-- COD quick-action buttons -->
+        <div id="modal-cod-actions" style="display:none;margin-bottom:1rem">
+          <p style="font-size:0.75rem;font-weight:600;color:#64748b;margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">
+            {locale === 'ar' ? 'إجراءات سريعة' : 'Quick Actions'}
+          </p>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+            <button onclick="setQuickStatus('shipped')"
+              style="flex:1;padding:0.5rem;border:1px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:#1d4ed8;font-family:inherit;font-size:0.8rem;cursor:pointer;font-weight:600">
+              🚚 {t('orders.action.ship', locale)}
+            </button>
+            <button onclick="setQuickStatus('delivered')"
+              style="flex:1;padding:0.5rem;border:1px solid #bbf7d0;border-radius:8px;background:#f0fdf4;color:#166534;font-family:inherit;font-size:0.8rem;cursor:pointer;font-weight:600">
+              ✅ {t('orders.action.deliver', locale)}
+            </button>
+            <button onclick="setQuickStatus('cancelled')"
+              style="flex:1;padding:0.5rem;border:1px solid #fecaca;border-radius:8px;background:#fef2f2;color:#991b1b;font-family:inherit;font-size:0.8rem;cursor:pointer;font-weight:600">
+              ✕ {t('orders.action.cancel', locale)}
+            </button>
+          </div>
+        </div>
+
+        <div id="modal-error" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;padding:0.5rem 0.75rem;border-radius:8px;font-size:0.8rem;margin-bottom:0.875rem"></div>
+
         <div style="display:flex;gap:0.75rem;justify-content:flex-end">
-          <button onclick="closeModal()" style="padding:0.5rem 1rem;border:1px solid #e2e8f0;border-radius:8px;background:none;cursor:pointer;font-family:inherit">إلغاء</button>
-          <button onclick="saveStatus()" style="padding:0.5rem 1.25rem;background:#6366f1;color:#fff;border:none;border-radius:8px;font-family:inherit;font-weight:600;cursor:pointer">حفظ</button>
+          <button onclick="closeModal()"
+            style="padding:0.5rem 1rem;border:1px solid #e2e8f0;border-radius:8px;background:none;cursor:pointer;font-family:inherit;font-size:0.875rem">
+            {locale === 'ar' ? 'إلغاء' : 'Cancel'}
+          </button>
+          <button onclick="saveStatus()"
+            style="padding:0.5rem 1.25rem;background:#6366f1;color:#fff;border:none;border-radius:8px;font-family:inherit;font-weight:600;cursor:pointer;font-size:0.875rem">
+            {locale === 'ar' ? 'حفظ' : 'Save'}
+          </button>
         </div>
       </div>
     </div>
+
   </div>
 </DashboardLayout>
 
-<script define:vars={{ API_URL }}>
+<script define:vars={{ API_URL, locale }}>
   const tenantSlug = localStorage.getItem('tenant_slug') ?? '';
   let currentPage = 1;
 
-  const statusLabels = { pending: 'قيد الانتظار', paid: 'مدفوع', shipped: 'تم الشحن', cancelled: 'ملغي', refunded: 'مسترجع' };
+  // ── i18n maps ──────────────────────────────────────────────
+  const statusLabel = {
+    pending:   locale === 'ar' ? 'قيد الانتظار' : 'Pending',
+    paid:      locale === 'ar' ? 'مدفوع'        : 'Paid',
+    shipped:   locale === 'ar' ? 'تم الشحن'     : 'Shipped',
+    delivered: locale === 'ar' ? 'تم التوصيل'   : 'Delivered',
+    cancelled: locale === 'ar' ? 'ملغي'          : 'Cancelled',
+    refunded:  locale === 'ar' ? 'مسترجع'        : 'Refunded',
+  };
   const statusStyle = {
-    pending: 'background:#fef3c7;color:#92400e',
-    paid: 'background:#d1fae5;color:#065f46',
-    shipped: 'background:#dbeafe;color:#1e40af',
+    pending:   'background:#fef3c7;color:#92400e',
+    paid:      'background:#d1fae5;color:#065f46',
+    shipped:   'background:#dbeafe;color:#1e40af',
+    delivered: 'background:#dcfce7;color:#166534',
     cancelled: 'background:#fee2e2;color:#991b1b',
-    refunded: 'background:#f3e8ff;color:#7c3aed',
+    refunded:  'background:#f3e8ff;color:#7c3aed',
+  };
+  const paymentMethodLabel = {
+    STRIPE: locale === 'ar' ? '💳 بطاقة'       : '💳 Card',
+    COD:    locale === 'ar' ? '🏠 عند الاستلام' : '🏠 COD',
+  };
+  const paymentStatusLabel = {
+    PAID:    locale === 'ar' ? 'مدفوع'       : 'Paid',
+    UNPAID:  locale === 'ar' ? 'غير مدفوع'   : 'Unpaid',
+    PENDING: locale === 'ar' ? 'في الانتظار' : 'Pending',
+    FAILED:  locale === 'ar' ? 'فشل'         : 'Failed',
+  };
+  const paymentStatusStyle = {
+    PAID:    'color:#065f46',
+    UNPAID:  'color:#92400e;font-weight:700',
+    PENDING: 'color:#6b7280',
+    FAILED:  'color:#991b1b',
   };
 
+  // ── Load orders ────────────────────────────────────────────
   async function loadOrders(page = 1) {
     currentPage = page;
     const status = document.getElementById('status-filter').value;
+    const paymentMethod = document.getElementById('payment-filter').value;
+
     const params = new URLSearchParams({ page, limit: 20 });
     if (status) params.set('status', status);
+    if (paymentMethod) params.set('paymentMethod', paymentMethod);
 
     const tbody = document.getElementById('orders-tbody');
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#94a3b8">جاري التحميل...</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8">${locale === 'ar' ? 'جاري التحميل...' : 'Loading...'}</td></tr>`;
 
     try {
       const res = await fetch(`${API_URL}/dashboard/orders?${params}`, {
         credentials: 'include',
         headers: { 'X-Tenant-Slug': tenantSlug },
       });
+
+      if (res.status === 401) {
+        window.location.href = '/auth/login';
+        return;
+      }
+
       const data = await res.json();
       const orders = data.data ?? [];
+      const total = data.total ?? orders.length;
 
-      document.getElementById('total-count').textContent = orders.length > 0 ? `${orders.length} طلب` : '';
+      document.getElementById('total-count').textContent =
+        total > 0 ? `${total} ${locale === 'ar' ? 'طلب' : 'orders'}` : '';
+
+      // COD pending alert
+      const codPending = orders.filter(o => o.paymentMethod === 'COD' && o.status === 'pending');
+      const codAlert = document.getElementById('cod-alert');
+      if (codPending.length > 0 && !paymentMethod && !status) {
+        const alertText = locale === 'ar'
+          ? `⚠️ لديك ${codPending.length} طلب(ات) COD تنتظر التأكيد`
+          : `⚠️ You have ${codPending.length} COD order(s) awaiting confirmation`;
+        document.getElementById('cod-alert-text').textContent = alertText;
+        codAlert.style.display = 'block';
+      } else {
+        codAlert.style.display = 'none';
+      }
 
       if (!orders.length) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:3rem;color:#94a3b8"><div style="font-size:2rem;margin-bottom:0.5rem">🛒</div><p>لا توجد طلبات</p></td></tr>';
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:3rem;color:#94a3b8">
+          <div style="font-size:2rem;margin-bottom:0.5rem">🛒</div>
+          <p>${locale === 'ar' ? 'لا توجد طلبات' : 'No orders found'}</p>
+        </td></tr>`;
         document.getElementById('pagination').innerHTML = '';
         return;
       }
 
       tbody.innerHTML = orders.map(o => {
-        const date = new Date(o.createdAt).toLocaleDateString('ar-MA', { year: 'numeric', month: 'short', day: 'numeric' });
+        const date = new Date(o.createdAt).toLocaleDateString(
+          locale === 'ar' ? 'ar-MA' : 'en-GB',
+          { year: 'numeric', month: 'short', day: 'numeric' }
+        );
+        const isCod = o.paymentMethod === 'COD';
+        const isUrgent = isCod && o.status === 'pending';
+
         return `
-          <tr style="border-bottom:1px solid #f1f5f9" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-            <td style="padding:0.875rem 1rem;font-weight:600;font-family:monospace">#${o.id.slice(-6).toUpperCase()}</td>
-            <td style="padding:0.875rem 1rem;color:#475569">${o.customerEmail}</td>
-            <td style="padding:0.875rem 1rem;font-weight:600">${o.total} ${o.currency}</td>
+          <tr style="border-bottom:1px solid #f1f5f9;${isUrgent ? 'background:#fffbeb' : ''}"
+            onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='${isUrgent ? '#fffbeb' : ''}'">
+
+            <td style="padding:0.875rem 1rem;font-weight:600;font-family:monospace;white-space:nowrap">
+              #${o.id.slice(-6).toUpperCase()}
+              ${isUrgent ? '<span style="display:inline-block;width:6px;height:6px;background:#f59e0b;border-radius:50%;margin-inline-start:4px;vertical-align:middle"></span>' : ''}
+            </td>
+
+            <td style="padding:0.875rem 1rem;max-width:200px">
+              <div style="color:#334155;font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${o.customerEmail}</div>
+              ${o.customerPhone ? `<div style="color:#94a3b8;font-size:0.75rem">${o.customerPhone}</div>` : ''}
+            </td>
+
+            <td style="padding:0.875rem 1rem;white-space:nowrap">
+              <span style="font-size:0.8rem;font-weight:600;${isCod ? 'color:#92400e' : 'color:#374151'}">
+                ${paymentMethodLabel[o.paymentMethod] ?? o.paymentMethod}
+              </span>
+              <div style="font-size:0.7rem;margin-top:0.1rem;${paymentStatusStyle[o.paymentStatus] ?? ''}">
+                ${paymentStatusLabel[o.paymentStatus] ?? o.paymentStatus}
+              </div>
+            </td>
+
+            <td style="padding:0.875rem 1rem;font-weight:600;white-space:nowrap">${o.total.toFixed(2)} ${o.currency}</td>
+
             <td style="padding:0.875rem 1rem">
               <span style="display:inline-block;padding:0.2rem 0.625rem;border-radius:100px;font-size:0.75rem;font-weight:600;${statusStyle[o.status] ?? ''}">
-                ${statusLabels[o.status] ?? o.status}
+                ${statusLabel[o.status] ?? o.status}
               </span>
             </td>
-            <td style="padding:0.875rem 1rem;color:#64748b;font-size:0.8rem">${date}</td>
-            <td style="padding:0.875rem 1rem">
-              <button onclick="openModal('${o.id}', '${o.status}')"
-                style="font-size:0.8rem;color:#6366f1;border:1px solid #e2e8f0;padding:0.25rem 0.625rem;border-radius:6px;background:none;cursor:pointer;font-family:inherit">
-                تحديث
+
+            <td style="padding:0.875rem 1rem;color:#64748b;font-size:0.8rem;white-space:nowrap">${date}</td>
+
+            <td style="padding:0.875rem 1rem;white-space:nowrap">
+              <button onclick="openModal('${o.id}', '${o.status}', '${o.paymentMethod}', '${o.paymentStatus}')"
+                style="font-size:0.8rem;color:#6366f1;border:1px solid #e0e7ff;padding:0.3rem 0.75rem;border-radius:6px;background:#f5f3ff;cursor:pointer;font-family:inherit;font-weight:600">
+                ${locale === 'ar' ? 'تحديث' : 'Update'}
               </button>
             </td>
           </tr>
         `;
       }).join('');
 
-    } catch {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#ef4444">فشل تحميل الطلبات</td></tr>';
+      // Pagination
+      if (data.total > 20) {
+        const totalPages = Math.ceil(data.total / 20);
+        document.getElementById('pagination').innerHTML = Array.from({ length: totalPages }, (_, i) => i + 1)
+          .map(p => `
+            <button onclick="loadOrders(${p})"
+              style="width:32px;height:32px;border-radius:8px;border:1px solid ${p === currentPage ? '#6366f1' : '#e2e8f0'};
+              background:${p === currentPage ? '#6366f1' : '#fff'};color:${p === currentPage ? '#fff' : '#374151'};
+              cursor:pointer;font-family:inherit;font-size:0.875rem">${p}</button>
+          `).join('');
+      } else {
+        document.getElementById('pagination').innerHTML = '';
+      }
+
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:#ef4444">
+        ${locale === 'ar' ? 'فشل تحميل الطلبات' : 'Failed to load orders'}
+      </td></tr>`;
     }
   }
 
-  function openModal(orderId, currentStatus) {
+  // ── Modal ──────────────────────────────────────────────────
+  function openModal(orderId, currentStatus, paymentMethod, currentPaymentStatus) {
     document.getElementById('modal-order-id').value = orderId;
+    document.getElementById('modal-payment-method').value = paymentMethod;
     document.getElementById('modal-status').value = currentStatus;
     document.getElementById('modal-note').value = '';
+    document.getElementById('modal-error').style.display = 'none';
+
+    // Payment badge
+    const badge = document.getElementById('modal-payment-badge');
+    if (paymentMethod === 'COD') {
+      badge.textContent = 'COD';
+      badge.style.cssText = 'background:#fef3c7;color:#92400e;font-size:0.7rem;font-weight:700;padding:0.2rem 0.5rem;border-radius:100px';
+    } else {
+      badge.textContent = 'STRIPE';
+      badge.style.cssText = 'background:#f0f9ff;color:#0369a1;font-size:0.7rem;font-weight:700;padding:0.2rem 0.5rem;border-radius:100px';
+    }
+
+    // Show COD-specific controls
+    const isCod = paymentMethod === 'COD';
+    document.getElementById('modal-payment-status-group').style.display = isCod ? 'block' : 'none';
+    document.getElementById('modal-cod-actions').style.display = isCod ? 'block' : 'none';
+    if (isCod) {
+      document.getElementById('modal-payment-status').value = currentPaymentStatus;
+    }
+
     document.getElementById('modal-overlay').style.display = 'flex';
   }
 
@@ -149,34 +354,67 @@ const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
     document.getElementById('modal-overlay').style.display = 'none';
   }
 
+  function setQuickStatus(status) {
+    document.getElementById('modal-status').value = status;
+    // Auto-set payment status for COD quick actions
+    if (status === 'delivered') {
+      document.getElementById('modal-payment-status').value = 'PAID';
+    } else if (status === 'cancelled') {
+      document.getElementById('modal-payment-status').value = 'UNPAID';
+    }
+  }
+
   async function saveStatus() {
     const orderId = document.getElementById('modal-order-id').value;
+    const paymentMethod = document.getElementById('modal-payment-method').value;
     const status = document.getElementById('modal-status').value;
-    const note = document.getElementById('modal-note').value;
+    const note = document.getElementById('modal-note').value.trim();
+    const errorEl = document.getElementById('modal-error');
+
+    // Confirm cancel
+    if (status === 'cancelled') {
+      const msg = locale === 'ar' ? 'هل أنت متأكد من إلغاء هذا الطلب؟' : 'Are you sure you want to cancel this order?';
+      if (!confirm(msg)) return;
+    }
+
+    const body = { status, note: note || undefined };
+    if (paymentMethod === 'COD') {
+      body.paymentStatus = document.getElementById('modal-payment-status').value;
+    }
+
+    errorEl.style.display = 'none';
 
     const res = await fetch(`${API_URL}/dashboard/orders/${orderId}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'X-Tenant-Slug': tenantSlug },
       credentials: 'include',
-      body: JSON.stringify({ status, note: note || undefined }),
+      body: JSON.stringify(body),
     });
 
     if (res.ok) {
       closeModal();
       loadOrders(currentPage);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      errorEl.textContent = data.error ?? (locale === 'ar' ? 'فشل التحديث' : 'Update failed');
+      errorEl.style.display = 'block';
     }
   }
 
-  // Close modal on overlay click
+  // ── Events ─────────────────────────────────────────────────
   document.getElementById('modal-overlay').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeModal();
   });
 
   document.getElementById('status-filter').addEventListener('change', () => loadOrders(1));
+  document.getElementById('payment-filter').addEventListener('change', () => loadOrders(1));
 
+  // Expose to HTML onclick handlers
   window.openModal = openModal;
   window.closeModal = closeModal;
   window.saveStatus = saveStatus;
+  window.setQuickStatus = setQuickStatus;
   window.loadOrders = loadOrders;
+
   loadOrders();
 </script>

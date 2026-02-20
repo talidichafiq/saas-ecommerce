@@ -149,9 +149,19 @@ export const orders = sqliteTable(
     tenantId: tenantId(),
     customerEmail: text('customer_email').notNull(),
     customerName: text('customer_name'),
+    customerPhone: text('customer_phone'),
+    customerAddress: text('customer_address'),
     status: text('status', {
-      enum: ['pending', 'paid', 'shipped', 'cancelled', 'refunded'],
+      enum: ['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'refunded'],
     }).notNull().default('pending'),
+    // Payment method: STRIPE (online card) | COD (cash on delivery)
+    paymentMethod: text('payment_method', {
+      enum: ['STRIPE', 'COD'],
+    }).notNull().default('STRIPE'),
+    // Payment status is tracked separately from fulfillment status
+    paymentStatus: text('payment_status', {
+      enum: ['PAID', 'UNPAID', 'PENDING', 'FAILED'],
+    }).notNull().default('PENDING'),
     subtotal: real('subtotal').notNull(),
     total: real('total').notNull(),
     currency: text('currency').notNull().default('MAD'),
@@ -163,6 +173,8 @@ export const orders = sqliteTable(
     tenantIdx: index('orders_tenant_idx').on(t.tenantId),
     statusIdx: index('orders_status_idx').on(t.tenantId, t.status),
     stripeIdx: index('orders_stripe_idx').on(t.stripeSessionId),
+    paymentMethodIdx: index('orders_payment_method_idx').on(t.tenantId, t.paymentMethod),
+    paymentStatusIdx: index('orders_payment_status_idx').on(t.tenantId, t.paymentStatus),
   })
 );
 
@@ -230,6 +242,8 @@ export type ProductImage = typeof productImages.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type NewCategory = typeof categories.$inferInsert;
 export type Order = typeof orders.$inferSelect;
+export type PaymentMethod = 'STRIPE' | 'COD';
+export type PaymentStatus = 'PAID' | 'UNPAID' | 'PENDING' | 'FAILED';
 export type NewOrder = typeof orders.$inferInsert;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;

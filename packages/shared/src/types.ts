@@ -2,7 +2,9 @@
 
 export type Plan = 'free' | 'pro' | 'business';
 export type Role = 'owner' | 'admin' | 'staff';
-export type OrderStatus = 'pending' | 'paid' | 'shipped' | 'cancelled' | 'refunded';
+export type OrderStatus = 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
+export type PaymentMethod = 'STRIPE' | 'COD';
+export type PaymentStatus = 'PAID' | 'UNPAID' | 'PENDING' | 'FAILED';
 export type ProductStatus = 'active' | 'draft' | 'archived';
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete';
 
@@ -65,11 +67,17 @@ export interface Order {
   id: string;
   tenantId: string;
   customerEmail: string;
+  customerName: string | null;
+  customerPhone: string | null;
+  customerAddress: string | null;
   status: OrderStatus;
+  paymentMethod: PaymentMethod;
+  paymentStatus: PaymentStatus;
   subtotal: number;
   total: number;
   currency: string;
   stripeSessionId: string | null;
+  notes: string | null;
   createdAt: string;
   items?: OrderItem[];
 }

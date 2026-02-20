@@ -1,59 +1,112 @@
 ---
 // apps/web/src/pages/store/cart.astro
 import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
-import { getLocaleFromCookie, t } from '../../i18n/index.js';
+import { getLocaleFromCookie, t, isRTL } from '../../i18n/index.js';
 
 const cookies = Astro.request.headers.get('cookie') ?? '';
 const locale = getLocaleFromCookie(cookies);
+const dir = isRTL(locale) ? 'rtl' : 'ltr';
 const API_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8787';
 const host = Astro.request.headers.get('host') ?? '';
 const tenantSlug = host.split('.')[0];
 ---
 
 <StorefrontLayout title={t('cart.title', locale)}>
-  <div class="container py-8 max-w-3xl">
-    <h1 class="text-2xl font-bold mb-6">{t('cart.title', locale)}</h1>
+  <div style="max-width:680px;margin:0 auto;padding:2rem 1rem">
+    <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:1.5rem">{t('cart.title', locale)}</h1>
 
     <!-- Empty state -->
-    <div id="cart-empty" class="hidden text-center py-20">
-      <div class="text-6xl mb-4">🛒</div>
-      <p class="text-muted-foreground mb-4">{t('cart.empty', locale)}</p>
-      <a href="/catalog" class="bg-primary text-white px-6 py-2.5 rounded-xl font-medium hover:bg-primary/90 transition-colors">
+    <div id="cart-empty" style="display:none;text-align:center;padding:4rem 0">
+      <div style="font-size:4rem;margin-bottom:1rem">🛒</div>
+      <p style="color:#64748b;margin-bottom:1rem">{t('cart.empty', locale)}</p>
+      <a href="/catalog" style="background:#6366f1;color:#fff;padding:0.625rem 1.5rem;border-radius:10px;font-weight:600;font-size:0.875rem">
         {t('cart.continue_shopping', locale)}
       </a>
     </div>
 
-    <!-- Cart items -->
-    <div id="cart-content" class="hidden">
-      <div id="cart-items" class="space-y-3 mb-6"></div>
+    <!-- Cart content -->
+    <div id="cart-content" style="display:none">
+      <!-- Items -->
+      <div id="cart-items" style="display:flex;flex-direction:column;gap:0.75rem;margin-bottom:1.5rem"></div>
 
-      <!-- Summary -->
-      <div class="bg-white rounded-xl border p-5">
-        <div class="flex justify-between text-sm mb-2">
-          <span class="text-muted-foreground">{t('cart.subtotal', locale)}</span>
-          <span id="cart-subtotal" class="font-medium">0</span>
+      <!-- Checkout form card -->
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:1.5rem">
+
+        <!-- Order summary -->
+        <div style="display:flex;justify-content:space-between;font-size:0.875rem;margin-bottom:0.5rem">
+          <span style="color:#64748b">{t('cart.subtotal', locale)}</span>
+          <span id="cart-subtotal" style="font-weight:600">0</span>
         </div>
-        <div class="border-t my-3"></div>
-        <div class="flex justify-between font-bold text-lg mb-4">
+        <div style="border-top:1px solid #f1f5f9;margin:0.75rem 0"></div>
+        <div style="display:flex;justify-content:space-between;font-weight:700;font-size:1.125rem;margin-bottom:1.25rem">
           <span>{t('cart.total', locale)}</span>
-          <span id="cart-total">0</span>
+          <span id="cart-total" style="color:#6366f1">0</span>
         </div>
 
-        <div class="mb-3">
-          <label class="block text-sm font-medium mb-1">البريد الإلكتروني *</label>
-          <input type="email" id="customer-email" placeholder="you@example.com" class="w-full border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" required />
+        <!-- ── Payment method selector ─────────────────────── -->
+        <div style="margin-bottom:1.25rem">
+          <p style="font-size:0.875rem;font-weight:600;margin-bottom:0.625rem">{t('checkout.payment_method', locale)}</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+            <label id="stripe-option" style="border:2px solid #6366f1;border-radius:10px;padding:0.75rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;background:#f5f3ff">
+              <input type="radio" name="payment_method" value="STRIPE" checked style="accent-color:#6366f1" />
+              <span style="font-size:0.875rem;font-weight:600">💳 {t('checkout.pay_online', locale)}</span>
+            </label>
+            <label id="cod-option" style="border:2px solid #e2e8f0;border-radius:10px;padding:0.75rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem">
+              <input type="radio" name="payment_method" value="COD" style="accent-color:#6366f1" />
+              <span style="font-size:0.875rem;font-weight:600">🏠 {t('checkout.pay_cod', locale)}</span>
+            </label>
+          </div>
+          <p id="cod-note" style="display:none;font-size:0.75rem;color:#64748b;margin-top:0.5rem;background:#f8fafc;padding:0.5rem 0.75rem;border-radius:8px">
+            ℹ️ {t('checkout.cod_note', locale)}
+          </p>
         </div>
 
-        <div id="checkout-error" class="hidden bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-lg text-sm mb-3"></div>
+        <!-- Customer email (always shown) -->
+        <div style="margin-bottom:0.75rem">
+          <label style="display:block;font-size:0.8rem;font-weight:500;margin-bottom:0.375rem">
+            {t('auth.email', locale)} *
+          </label>
+          <input type="email" id="customer-email" placeholder="you@example.com"
+            style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.625rem 0.875rem;font-family:inherit;font-size:0.875rem;outline:none;box-sizing:border-box"
+            required />
+        </div>
 
-        <button
-          id="checkout-btn"
-          onclick="startCheckout()"
-          class="w-full bg-primary text-white py-3 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors"
-        >
+        <!-- COD extra fields (shown only when COD selected) -->
+        <div id="cod-fields" style="display:none;flex-direction:column;gap:0.75rem;margin-bottom:0.75rem">
+          <div>
+            <label style="display:block;font-size:0.8rem;font-weight:500;margin-bottom:0.375rem">
+              {t('checkout.customer_name', locale)} *
+            </label>
+            <input type="text" id="customer-name" placeholder={locale === 'ar' ? 'محمد أمين' : 'Full Name'}
+              style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.625rem 0.875rem;font-family:inherit;font-size:0.875rem;outline:none;box-sizing:border-box" />
+          </div>
+          <div>
+            <label style="display:block;font-size:0.8rem;font-weight:500;margin-bottom:0.375rem">
+              {t('checkout.customer_phone', locale)} *
+            </label>
+            <input type="tel" id="customer-phone" placeholder={locale === 'ar' ? '0612345678' : '+212612345678'}
+              style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.625rem 0.875rem;font-family:inherit;font-size:0.875rem;outline:none;box-sizing:border-box" />
+          </div>
+          <div>
+            <label style="display:block;font-size:0.8rem;font-weight:500;margin-bottom:0.375rem">
+              {t('checkout.customer_address', locale)} *
+            </label>
+            <textarea id="customer-address" rows="2"
+              placeholder={locale === 'ar' ? 'الشارع، الحي، المدينة، الرمز البريدي' : 'Street, District, City, ZIP'}
+              style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.625rem 0.875rem;font-family:inherit;font-size:0.875rem;outline:none;resize:none;box-sizing:border-box"></textarea>
+          </div>
+        </div>
+
+        <!-- Error -->
+        <div id="checkout-error" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;padding:0.625rem 0.875rem;border-radius:8px;font-size:0.8rem;margin-bottom:0.75rem"></div>
+
+        <!-- Submit button -->
+        <button id="checkout-btn" onclick="startCheckout()"
+          style="width:100%;background:#6366f1;color:#fff;padding:0.875rem;border:none;border-radius:10px;font-family:inherit;font-size:1rem;font-weight:700;cursor:pointer;transition:opacity 0.15s">
           {t('cart.checkout', locale)}
         </button>
-        <a href="/catalog" class="block text-center mt-3 text-sm text-muted-foreground hover:text-foreground">
+
+        <a href="/catalog" style="display:block;text-align:center;margin-top:0.75rem;font-size:0.8rem;color:#64748b">
           {t('cart.continue_shopping', locale)}
         </a>
       </div>
@@ -62,44 +115,77 @@ const tenantSlug = host.split('.')[0];
 </StorefrontLayout>
 
 <script define:vars={{ API_URL, tenantSlug, locale }}>
-  // Import from lib
+  // ── Cart helpers ───────────────────────────────────────────
   function getCart() {
     try { return JSON.parse(localStorage.getItem('saas_cart') ?? '[]'); } catch { return []; }
   }
   function saveCart(items) { localStorage.setItem('saas_cart', JSON.stringify(items)); }
 
+  // ── Payment method toggle ──────────────────────────────────
+  let currentPaymentMethod = 'STRIPE';
+
+  document.querySelectorAll('input[name="payment_method"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      currentPaymentMethod = e.target.value;
+      const isCod = currentPaymentMethod === 'COD';
+
+      // Visual feedback on labels
+      document.getElementById('stripe-option').style.borderColor = isCod ? '#e2e8f0' : '#6366f1';
+      document.getElementById('stripe-option').style.background = isCod ? '' : '#f5f3ff';
+      document.getElementById('cod-option').style.borderColor = isCod ? '#6366f1' : '#e2e8f0';
+      document.getElementById('cod-option').style.background = isCod ? '#f5f3ff' : '';
+
+      // Show/hide COD fields
+      document.getElementById('cod-fields').style.display = isCod ? 'flex' : 'none';
+      document.getElementById('cod-note').style.display = isCod ? 'block' : 'none';
+
+      // Update button text
+      const btn = document.getElementById('checkout-btn');
+      if (isCod) {
+        btn.textContent = locale === 'ar' ? '✅ تأكيد الطلب' : '✅ Place Order';
+      } else {
+        btn.textContent = locale === 'ar' ? '💳 إتمام الشراء' : '💳 Pay with Card';
+      }
+    });
+  });
+
+  // ── Render cart ────────────────────────────────────────────
   function renderCart() {
     const items = getCart();
     const currency = items[0]?.currency ?? 'MAD';
 
     if (!items.length) {
-      document.getElementById('cart-empty').classList.remove('hidden');
-      document.getElementById('cart-content').classList.add('hidden');
+      document.getElementById('cart-empty').style.display = 'block';
+      document.getElementById('cart-content').style.display = 'none';
       return;
     }
 
-    document.getElementById('cart-empty').classList.add('hidden');
-    document.getElementById('cart-content').classList.remove('hidden');
+    document.getElementById('cart-empty').style.display = 'none';
+    document.getElementById('cart-content').style.display = 'block';
 
     const subtotal = items.reduce((acc, i) => acc + (i.salePrice ?? i.price) * i.qty, 0);
-
     document.getElementById('cart-subtotal').textContent = `${subtotal.toFixed(2)} ${currency}`;
     document.getElementById('cart-total').textContent = `${subtotal.toFixed(2)} ${currency}`;
 
     document.getElementById('cart-items').innerHTML = items.map(item => `
-      <div class="bg-white rounded-xl border p-4 flex gap-4 items-center" data-product-id="${item.productId}">
-        <div class="w-16 h-16 bg-muted rounded-lg overflow-hidden flex-shrink-0">
-          ${item.imageUrl ? `<img src="${item.imageUrl}" alt="${item.title}" class="w-full h-full object-cover" />` : '<div class="w-full h-full flex items-center justify-center text-2xl">📦</div>'}
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;display:flex;gap:0.875rem;align-items:center">
+        <div style="width:64px;height:64px;background:#f1f5f9;border-radius:8px;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center">
+          ${item.imageUrl
+            ? `<img src="${item.imageUrl}" alt="${item.title}" style="width:100%;height:100%;object-fit:cover" />`
+            : '<span style="font-size:1.75rem">📦</span>'}
         </div>
-        <div class="flex-1 min-w-0">
-          <p class="font-medium text-sm line-clamp-2">${item.title}</p>
-          <p class="text-sm text-primary font-bold mt-0.5">${(item.salePrice ?? item.price).toFixed(2)} ${item.currency ?? 'MAD'}</p>
+        <div style="flex:1;min-width:0">
+          <p style="font-weight:600;font-size:0.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.title}</p>
+          <p style="color:#6366f1;font-weight:700;font-size:0.875rem;margin-top:0.125rem">${(item.salePrice ?? item.price).toFixed(2)} ${item.currency ?? 'MAD'}</p>
         </div>
-        <div class="flex items-center gap-2 flex-shrink-0">
-          <button onclick="updateQty('${item.productId}', ${item.qty - 1})" class="w-7 h-7 border rounded-full flex items-center justify-center hover:bg-muted text-sm">−</button>
-          <span class="w-8 text-center text-sm font-medium">${item.qty}</span>
-          <button onclick="updateQty('${item.productId}', ${item.qty + 1})" class="w-7 h-7 border rounded-full flex items-center justify-center hover:bg-muted text-sm">+</button>
-          <button onclick="removeItem('${item.productId}')" class="w-7 h-7 text-red-400 hover:text-red-600 ms-1 text-lg leading-none">×</button>
+        <div style="display:flex;align-items:center;gap:0.375rem;flex-shrink:0">
+          <button onclick="updateQty('${item.productId}', ${item.qty - 1})"
+            style="width:28px;height:28px;border:1px solid #e2e8f0;border-radius:50%;background:#fff;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center">−</button>
+          <span style="width:28px;text-align:center;font-size:0.875rem;font-weight:600">${item.qty}</span>
+          <button onclick="updateQty('${item.productId}', ${item.qty + 1})"
+            style="width:28px;height:28px;border:1px solid #e2e8f0;border-radius:50%;background:#fff;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center">+</button>
+          <button onclick="removeItem('${item.productId}')"
+            style="width:28px;height:28px;background:none;border:none;cursor:pointer;color:#ef4444;font-size:1.25rem;display:flex;align-items:center;justify-content:center">×</button>
         </div>
       </div>
     `).join('');
@@ -122,23 +208,79 @@ const tenantSlug = host.split('.')[0];
     renderCart();
   }
 
+  // ── Checkout ───────────────────────────────────────────────
   async function startCheckout() {
-    const email = document.getElementById('customer-email').value;
     const errorEl = document.getElementById('checkout-error');
     const btn = document.getElementById('checkout-btn');
+    const email = document.getElementById('customer-email').value.trim();
+    const items = getCart();
+
+    errorEl.style.display = 'none';
 
     if (!email || !email.includes('@')) {
       errorEl.textContent = locale === 'ar' ? 'يرجى إدخال بريد إلكتروني صحيح' : 'Please enter a valid email';
-      errorEl.classList.remove('hidden');
+      errorEl.style.display = 'block';
+      return;
+    }
+    if (!items.length) return;
+
+    const currency = items[0]?.currency ?? 'MAD';
+    btn.disabled = true;
+
+    // ── COD flow ──────────────────────────────────────────
+    if (currentPaymentMethod === 'COD') {
+      const name = document.getElementById('customer-name').value.trim();
+      const phone = document.getElementById('customer-phone').value.trim();
+      const address = document.getElementById('customer-address').value.trim();
+
+      if (!name || !phone || !address) {
+        errorEl.textContent = locale === 'ar'
+          ? 'يرجى ملء جميع البيانات المطلوبة (الاسم، الهاتف، العنوان)'
+          : 'Please fill all required fields (name, phone, address)';
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+        return;
+      }
+
+      btn.textContent = locale === 'ar' ? 'جاري إرسال الطلب...' : 'Placing order...';
+
+      try {
+        const res = await fetch(`${API_URL}/store/checkout/cod`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Tenant-Slug': tenantSlug },
+          body: JSON.stringify({
+            items: items.map(i => ({ productId: i.productId, qty: i.qty })),
+            customerEmail: email,
+            customerName: name,
+            customerPhone: phone,
+            customerAddress: address,
+            currency,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          errorEl.textContent = data.error ?? (locale === 'ar' ? 'حدث خطأ' : 'An error occurred');
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        localStorage.removeItem('saas_cart');
+        window.location.href = data.redirectUrl;
+
+      } catch {
+        errorEl.textContent = locale === 'ar' ? 'حدث خطأ في الاتصال' : 'Connection error';
+        errorEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = locale === 'ar' ? '✅ تأكيد الطلب' : '✅ Place Order';
+      }
       return;
     }
 
-    const items = getCart();
-    if (!items.length) return;
-
-    btn.disabled = true;
+    // ── Stripe flow (unchanged) ───────────────────────────
     btn.textContent = locale === 'ar' ? 'جاري التحويل لـ Stripe...' : 'Redirecting to Stripe...';
-    errorEl.classList.add('hidden');
 
     try {
       const res = await fetch(`${API_URL}/store/checkout`, {
@@ -147,28 +289,29 @@ const tenantSlug = host.split('.')[0];
         body: JSON.stringify({
           items: items.map(i => ({ productId: i.productId, qty: i.qty })),
           customerEmail: email,
-          currency: items[0]?.currency ?? 'MAD',
+          currency,
           successUrl: `${window.location.origin}/success`,
           cancelUrl: `${window.location.origin}/cart`,
         }),
       });
+
       const data = await res.json();
 
       if (!res.ok) {
         errorEl.textContent = data.error ?? (locale === 'ar' ? 'حدث خطأ' : 'An error occurred');
-        errorEl.classList.remove('hidden');
+        errorEl.style.display = 'block';
         return;
       }
 
-      // Clear cart and redirect
       localStorage.removeItem('saas_cart');
       window.location.href = data.checkoutUrl;
-    } catch (err) {
+
+    } catch {
       errorEl.textContent = locale === 'ar' ? 'حدث خطأ في الاتصال' : 'Connection error';
-      errorEl.classList.remove('hidden');
+      errorEl.style.display = 'block';
     } finally {
       btn.disabled = false;
-      btn.textContent = locale === 'ar' ? 'إتمام الشراء' : 'Checkout';
+      btn.textContent = locale === 'ar' ? '💳 إتمام الشراء' : '💳 Pay with Card';
     }
   }
 

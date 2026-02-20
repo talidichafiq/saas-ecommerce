@@ -4,9 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --port 8787",
-    "build": "wrangler deploy --dry-run",
-    "deploy": "wrangler deploy",
+    "dev": "wrangler dev --config wrangler.toml",
+    "build": "wrangler deploy --config wrangler.toml --env production --dry-run",
+    "deploy": "wrangler deploy --config wrangler.toml --env production",
+    "deploy:prod": "wrangler deploy --config wrangler.toml --env production",
+    "deploy:preview": "wrangler deploy --config wrangler.toml --env preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

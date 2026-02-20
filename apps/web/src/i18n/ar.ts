@@ -126,6 +126,38 @@ export const ar = {
   'common.currency.EUR': 'يورو',
   'common.currency.USD': 'دولار',
 
+
+  // COD — Cash on Delivery
+  'checkout.payment_method': 'طريقة الدفع',
+  'checkout.pay_online': 'الدفع بالبطاقة',
+  'checkout.pay_cod': 'الدفع عند الاستلام',
+  'checkout.cod_label': 'الدفع عند الاستلام (COD)',
+  'checkout.cod_note': 'ادفع نقداً عند استلام طلبك. الحد الأقصى 2000 درهم.',
+  'checkout.customer_name': 'الاسم الكامل',
+  'checkout.customer_phone': 'رقم الهاتف',
+  'checkout.customer_address': 'عنوان التوصيل',
+  'checkout.place_order': 'تأكيد الطلب',
+  'checkout.placing_order': 'جاري إرسال الطلب...',
+  'checkout.cod_success': 'تم استلام طلبك! سنتواصل معك لتأكيد التوصيل.',
+  'checkout.cod_limit_error': 'الحد الأقصى للدفع عند الاستلام هو 2000 درهم.',
+
+  // Orders — extended statuses
+  'orders.status.delivered': 'تم التوصيل',
+  'orders.payment_method': 'طريقة الدفع',
+  'orders.payment_status': 'حالة الدفع',
+  'orders.payment_method.STRIPE': 'بطاقة',
+  'orders.payment_method.COD': 'دفع عند الاستلام',
+  'orders.payment_status.PAID': 'مدفوع',
+  'orders.payment_status.UNPAID': 'غير مدفوع',
+  'orders.payment_status.PENDING': 'في الانتظار',
+  'orders.payment_status.FAILED': 'فشل الدفع',
+  'orders.action.confirm': 'تأكيد الطلب',
+  'orders.action.ship': 'تأكيد الشحن',
+  'orders.action.deliver': 'تأكيد التسليم',
+  'orders.action.cancel': 'إلغاء الطلب',
+  'orders.cod_badge': 'COD',
+  'orders.confirm_cancel': 'هل أنت متأكد من إلغاء هذا الطلب؟',
+
   // Onboarding
   'onboarding.title': 'إنشاء متجرك',
   'onboarding.store_name': 'اسم المتجر',

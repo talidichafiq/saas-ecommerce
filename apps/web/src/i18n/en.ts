@@ -117,6 +117,38 @@ export const en = {
   'common.currency.EUR': 'EUR',
   'common.currency.USD': 'USD',
 
+
+  // COD — Cash on Delivery
+  'checkout.payment_method': 'Payment Method',
+  'checkout.pay_online': 'Pay by Card',
+  'checkout.pay_cod': 'Cash on Delivery',
+  'checkout.cod_label': 'Cash on Delivery (COD)',
+  'checkout.cod_note': 'Pay cash when your order arrives. Max 2000 MAD.',
+  'checkout.customer_name': 'Full Name',
+  'checkout.customer_phone': 'Phone Number',
+  'checkout.customer_address': 'Delivery Address',
+  'checkout.place_order': 'Place Order',
+  'checkout.placing_order': 'Placing order...',
+  'checkout.cod_success': 'Order received! We will contact you to confirm delivery.',
+  'checkout.cod_limit_error': 'COD limit is 2000 MAD. Please pay by card for larger orders.',
+
+  // Orders — extended statuses
+  'orders.status.delivered': 'Delivered',
+  'orders.payment_method': 'Payment',
+  'orders.payment_status': 'Payment Status',
+  'orders.payment_method.STRIPE': 'Card',
+  'orders.payment_method.COD': 'Cash on Delivery',
+  'orders.payment_status.PAID': 'Paid',
+  'orders.payment_status.UNPAID': 'Unpaid',
+  'orders.payment_status.PENDING': 'Pending',
+  'orders.payment_status.FAILED': 'Failed',
+  'orders.action.confirm': 'Confirm Order',
+  'orders.action.ship': 'Mark Shipped',
+  'orders.action.deliver': 'Mark Delivered',
+  'orders.action.cancel': 'Cancel Order',
+  'orders.cod_badge': 'COD',
+  'orders.confirm_cancel': 'Are you sure you want to cancel this order?',
+
   'onboarding.title': 'Create Your Store',
   'onboarding.store_name': 'Store Name',
   'onboarding.store_slug': 'Store URL',
